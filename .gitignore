@@ -13,3 +13,4 @@ cms-backend/mvnw.cmd
 .idea/
 *.iml
 .DS_Store
+.vscode/
