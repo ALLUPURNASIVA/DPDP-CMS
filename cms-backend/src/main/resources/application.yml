@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cms
+    username: postgres     # Change to your PostgreSQL username
+    password: 1234     # Change to your PostgreSQL password
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # Flyway creates the tables, Hibernate just validates them
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  security:
+    oauth2:
+      resource server:
+        jwt:
+          issuer-uri: https://dev-m6frsjfbk7k258zu.us.auth0.com/
+          audiences: https://cms-api
+
+server:
+  port: 8080

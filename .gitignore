@@ -1,0 +1,15 @@
+# Frontend
+cms-frontend/node_modules/
+cms-frontend/dist/
+cms-frontend/.env
+
+# Backend
+cms-backend/target/
+cms-backend/.mvn/
+cms-backend/mvnw
+cms-backend/mvnw.cmd
+
+# IDE & OS Files
+.idea/
+*.iml
+.DS_Store
