@@ -1,6 +1,5 @@
 package com.DPDP.cms.repository;
 
-
 import com.DPDP.cms.entity.ConsentArtifact;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;

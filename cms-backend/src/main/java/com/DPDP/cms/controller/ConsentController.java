@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/consent")
@@ -25,6 +26,7 @@ public class ConsentController {
     private final PurposeRepository purposeRepo;
     private final AuditService auditService;
     private final EmailService emailService;
+    private final UserRepository userRepo;
 
     private String getAuth0UserId() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -34,13 +36,17 @@ public class ConsentController {
         throw new IllegalStateException("Missing or invalid JWT Authentication principal");
     }
 
-    private String getUserEmail() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
-            String email = jwt.getClaimAsString("email");
-            return email != null ? email : "user@example.com";
+    private void ensureUserExists(String userId, String email) {
+        if (!userRepo.existsById(userId)) {
+            User newUser = User.builder()
+                    .id(userId)
+                    .email(email)
+                    .role("GENERAL_USER")
+                    // If your User entity doesn't have a builder, just use:
+                    // User newUser = new User(); newUser.setId(userId); newUser.setEmail(email);
+                    .build();
+            userRepo.save(newUser);
         }
-        return "user@example.com";
     }
 
     // Journey 1: View Available Purposes
@@ -49,13 +55,28 @@ public class ConsentController {
         return purposeRepo.findByTenantId(tenantId);
     }
 
-    // Journey 1: Submit Consent
+    // Journey 1: Submit Consent (Upgraded with Dynamic Emails)
     @PostMapping("/collect/{tenantId}")
-    public ResponseEntity<?> collectConsent(@PathVariable String tenantId, @RequestBody List<Long> purposeIds, HttpServletRequest request) {
+    public ResponseEntity<?> collectConsent(
+            @PathVariable String tenantId,
+            @RequestBody List<Long> purposeIds,
+            @RequestHeader(value = "X-User-Email") String userEmail,
+            HttpServletRequest request) {
+
         String userId = getAuth0UserId();
+
+        // Check and create the user in the database
+        ensureUserExists(userId, userEmail);
+
+        // 1. Create a list to store the names of the purposes we are granting
+        List<String> grantedPurposeNames = new ArrayList<>();
 
         purposeIds.forEach(pId -> {
             Purpose purpose = purposeRepo.findById(pId).orElseThrow();
+
+            // 2. Add the readable name to our list
+            grantedPurposeNames.add(purpose.getName());
+
             ConsentArtifact artifact = ConsentArtifact.builder()
                     .userId(userId)
                     .tenantId(tenantId)
@@ -67,8 +88,15 @@ public class ConsentController {
             consentRepo.save(artifact);
         });
 
+        // 3. Create a beautiful, dynamic email message with bullet points
+        String dynamicEmailBody = "You have successfully granted consent to " + tenantId + " for the following data purposes:\n\n"
+                + "- " + String.join("\n- ", grantedPurposeNames)
+                + "\n\nYou can review or withdraw these at any time by logging into your DPDP Portal.";
+
         auditService.logAction(userId, tenantId, AuditLog.ActionType.GRANT, request.getRemoteAddr(), purposeIds.toString());
-        emailService.sendNotification(getUserEmail(), "Consent Granted", "You have granted new data consents.");
+
+        // 4. Send the dynamic email!
+        emailService.sendNotification(userEmail, "Consent Granted: " + tenantId, dynamicEmailBody);
 
         return ResponseEntity.ok(Map.of("message", "Consents recorded successfully"));
     }
@@ -80,8 +108,13 @@ public class ConsentController {
     }
 
     // Journey 1: Withdraw Consent
+    // Journey 1: Withdraw Consent (Upgraded with Detailed Emails)
     @PostMapping("/withdraw/{artifactId}")
-    public ResponseEntity<?> withdrawConsent(@PathVariable UUID artifactId, HttpServletRequest request) {
+    public ResponseEntity<?> withdrawConsent(
+            @PathVariable UUID artifactId,
+            @RequestHeader(value = "X-User-Email") String userEmail,
+            HttpServletRequest request) {
+
         String userId = getAuth0UserId();
         ConsentArtifact artifact = consentRepo.findById(artifactId).orElseThrow();
 
@@ -92,23 +125,43 @@ public class ConsentController {
         artifact.setStatus(ConsentArtifact.ConsentStatus.WITHDRAWN);
         consentRepo.save(artifact);
 
-        auditService.logAction(userId, artifact.getTenantId(), AuditLog.ActionType.WITHDRAW, request.getRemoteAddr(), artifactId.toString());
-        emailService.sendNotification(getUserEmail(), "Consent Withdrawn", "You withdrew consent for: " + artifact.getPurpose().getName());
+        // 1. Extract the specific details for the email
+        String tenantName = artifact.getTenantId();
+        String purposeName = artifact.getPurpose().getName();
+
+        // 2. Create a detailed, professional email message for withdrawal
+        String dynamicEmailBody = "You have successfully withdrawn your consent from " + tenantName + " for the following data purpose:\n\n"
+                + "- " + purposeName
+                + "\n\n" + tenantName + " has been legally notified to cease processing your data for this specific purpose. You can review your remaining active consents or re-grant this permission at any time by logging into your DPDP Portal.";
+
+        auditService.logAction(userId, tenantName, AuditLog.ActionType.WITHDRAW, request.getRemoteAddr(), artifactId.toString());
+
+        // 3. Send the detailed email!
+        emailService.sendNotification(userEmail, "Consent Withdrawn: " + tenantName, dynamicEmailBody);
 
         return ResponseEntity.ok(Map.of("message", "Consent successfully withdrawn"));
     }
 
     // Journey 2: Validate Consent (For Fiduciary External Systems)
+    // Journey 2: Validate Consent (Bulletproof JSON parsing)
     @PostMapping("/validate")
-    public ResponseEntity<?> validateConsent(@RequestBody Map<String, String> payload, HttpServletRequest request) {
-        String userId = payload.get("userId");
-        Long purposeId = Long.parseLong(payload.get("purposeId"));
-        String tenantId = payload.get("tenantId");
+    public ResponseEntity<?> validateConsent(@RequestBody Map<String, Object> payload, HttpServletRequest request) {
+        try {
+            // Safely convert whatever JSON data type arrives into Strings and Longs
+            String userId = payload.get("userId").toString();
+            String tenantId = payload.get("tenantId").toString();
+            Long purposeId = Long.parseLong(payload.get("purposeId").toString());
 
-        boolean isValid = consentRepo.existsByUserIdAndPurposeIdAndTenantIdAndStatus(
-                userId, purposeId, tenantId, ConsentArtifact.ConsentStatus.ACTIVE);
+            boolean isValid = consentRepo.existsByUserIdAndPurposeIdAndTenantIdAndStatus(
+                    userId, purposeId, tenantId, ConsentArtifact.ConsentStatus.ACTIVE);
 
-        auditService.logAction(userId, tenantId, AuditLog.ActionType.VALIDATE, request.getRemoteAddr(), purposeId.toString());
-        return ResponseEntity.ok(Map.of("valid", isValid));
+            auditService.logAction(userId, tenantId, AuditLog.ActionType.VALIDATE, request.getRemoteAddr(), purposeId.toString());
+
+            return ResponseEntity.ok(Map.of("valid", isValid));
+
+        } catch (Exception e) {
+            System.err.println("Validation Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid payload format"));
+        }
     }
 }

@@ -60,10 +60,14 @@ export default function ConsentManager() {
     
     try {
       const api = await getSecureClient(getAccessTokenSilently);
-      await api.post(`/consent/collect/${tenantId}`, selectedPurposes);
+      // ADD THE HEADERS CONFIGURATION HERE:
+      await api.post(`/consent/collect/${tenantId}`, selectedPurposes, {
+        headers: { 'X-User-Email': user?.email }
+      });
+      
       toast.success('Consents granted successfully!');
-      setSelectedPurposes([]); // Clear checkboxes
-      fetchDashboardData();    // Refresh UI
+      setSelectedPurposes([]); 
+      fetchDashboardData();    
     } catch (e) {
       toast.error('Failed to submit consents');
     }
@@ -72,9 +76,13 @@ export default function ConsentManager() {
   const handleWithdraw = async (artifactId) => {
     try {
       const api = await getSecureClient(getAccessTokenSilently);
-      await api.post(`/consent/withdraw/${artifactId}`);
+      // ADD THE HEADERS CONFIGURATION HERE (Notice the empty {} for the body):
+      await api.post(`/consent/withdraw/${artifactId}`, {}, {
+        headers: { 'X-User-Email': user?.email }
+      });
+      
       toast.success('Consent withdrawn. Processing stopped.');
-      fetchDashboardData(); // Refresh UI
+      fetchDashboardData(); 
     } catch (e) {
       toast.error('Failed to withdraw consent');
     }
@@ -139,30 +147,76 @@ export default function ConsentManager() {
           </div>
         </div>
 
-        {/* Right Column: Consent History */}
-        <div className="md:col-span-2">
-          <div className="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <h2 className="text-lg font-semibold mb-4 border-b pb-2">Consent History</h2>
+        {/* Right Column: Dashboards */}
+        <div className="md:col-span-2 space-y-6">
+          
+          {/* Section 1: Active Consents */}
+          <div className="bg-white shadow rounded-lg p-6 border border-green-200 border-t-4 border-t-green-500">
+            <h2 className="text-lg font-semibold mb-4 border-b pb-2 text-gray-800">Currently Active Consents</h2>
             
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-gray-500 text-sm border-b">
                     <th className="py-3 font-medium">Purpose</th>
-                    <th className="font-medium">Status</th>
                     <th className="font-medium">Granted On</th>
                     <th className="font-medium text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map(item => (
+                  {history.filter(item => item.status === 'ACTIVE').map(item => (
+                    <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
+                      <td className="py-4 text-sm text-gray-800">
+                        <span className="font-medium">{item.purpose.name}</span>
+                      </td>
+                      <td className="text-sm text-gray-600">
+                        {new Date(item.grantedAt).toLocaleDateString()}
+                      </td>
+                      <td className="text-right">
+                        {!item.purpose.isMandatory && (
+                          <button 
+                            onClick={() => handleWithdraw(item.id)}
+                            className="text-red-600 hover:text-red-800 font-medium text-sm transition-colors bg-red-50 px-3 py-1 rounded"
+                          >
+                            Withdraw
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {history.filter(item => item.status === 'ACTIVE').length === 0 && (
+                    <tr>
+                      <td colSpan="3" className="text-center py-6 text-gray-500 italic">
+                        You have no active consents with this company.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Section 2: Past History (Withdrawn/Expired) */}
+          <div className="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <h2 className="text-lg font-semibold mb-4 border-b pb-2 text-gray-800">Consent History Log</h2>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left opacity-75">
+                <thead>
+                  <tr className="text-gray-500 text-sm border-b">
+                    <th className="py-3 font-medium">Purpose</th>
+                    <th className="font-medium">Status</th>
+                    <th className="font-medium">Last Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.filter(item => item.status !== 'ACTIVE').map(item => (
                     <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="py-4 text-sm text-gray-800">
                         <span className="font-medium">{item.purpose.name}</span>
                       </td>
                       <td>
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 
                           item.status === 'WITHDRAWN' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {item.status}
@@ -171,22 +225,12 @@ export default function ConsentManager() {
                       <td className="text-sm text-gray-600">
                         {new Date(item.grantedAt).toLocaleDateString()}
                       </td>
-                      <td className="text-right">
-                        {item.status === 'ACTIVE' && !item.purpose.isMandatory && (
-                          <button 
-                            onClick={() => handleWithdraw(item.id)}
-                            className="text-red-600 hover:text-red-800 font-medium text-sm transition-colors"
-                          >
-                            Withdraw
-                          </button>
-                        )}
-                      </td>
                     </tr>
                   ))}
-                  {history.length === 0 && (
+                  {history.filter(item => item.status !== 'ACTIVE').length === 0 && (
                     <tr>
-                      <td colSpan="4" className="text-center py-8 text-gray-500">
-                        No consent history found for this company.
+                      <td colSpan="3" className="text-center py-6 text-gray-500 italic">
+                        No previous history found.
                       </td>
                     </tr>
                   )}
@@ -194,6 +238,7 @@ export default function ConsentManager() {
               </table>
             </div>
           </div>
+
         </div>
         
       </div>
