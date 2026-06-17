@@ -27,22 +27,15 @@ public class ConsentController {
     private final AuditService auditService;
     private final EmailService emailService;
     private final UserRepository userRepo;
+    private final NotificationLogRepository notificationRepo;
 
     private String getAuth0UserId() {
-
-    var authentication =
-            SecurityContextHolder.getContext().getAuthentication();
-
-    System.out.println("AUTH = " + authentication);
-
-    if (authentication != null &&
-            authentication.getPrincipal() instanceof Jwt jwt) {
-
-        return jwt.getClaimAsString("sub");
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
+            return jwt.getClaimAsString("sub");
+        }
+        throw new IllegalStateException("Missing or invalid JWT Authentication principal");
     }
-
-    return "TEST_USER";
-}
 
     private void ensureUserExists(String userId, String email) {
         if (!userRepo.existsById(userId)) {
@@ -106,28 +99,26 @@ public class ConsentController {
         // 4. Send the dynamic email!
         emailService.sendNotification(userEmail, "Consent Granted: " + tenantId, dynamicEmailBody);
 
+        // --- NEW: FIRE THE NOTIFICATION TELEMETRY ---
+        if (userEmail != null && !userEmail.isEmpty()) {
+            NotificationLog notif = NotificationLog.builder()
+                    .messageId("msg_" + java.util.UUID.randomUUID().toString().substring(0, 8))
+                    .recipient(userEmail)
+                    .status(NotificationLog.NotificationStatus.SENT)
+                    .timestamp(java.time.LocalDateTime.now())
+                    .build();
+            notificationRepo.save(notif);
+        }
+
         return ResponseEntity.ok(Map.of("message", "Consents recorded successfully"));
     }
 
     // Journey 1: View Active Consents
     @GetMapping("/history")
-public ResponseEntity<?> getHistory() {
-    try {
-        return ResponseEntity.ok(
-                consentRepo.findByUserId(getAuth0UserId())
-        );
-    } catch (Exception e) {
-        e.printStackTrace();
-
-        return ResponseEntity.internalServerError().body(
-                Map.of(
-                        "error", e.getClass().getName(),
-                        "message", e.getMessage()
-                )
-        );
+    public List<ConsentArtifact> getHistory() {
+        return consentRepo.findByUserId(getAuth0UserId());
     }
-}
-    // Journey 1: Withdraw Consent
+
     // Journey 1: Withdraw Consent (Upgraded with Detailed Emails)
     @PostMapping("/withdraw/{artifactId}")
     public ResponseEntity<?> withdrawConsent(
@@ -158,6 +149,19 @@ public ResponseEntity<?> getHistory() {
 
         // 3. Send the detailed email!
         emailService.sendNotification(userEmail, "Consent Withdrawn: " + tenantName, dynamicEmailBody);
+
+        // --- NEW: FIRE THE NOTIFICATION TELEMETRY ---
+        if (userEmail != null && !userEmail.isEmpty()) {
+            NotificationLog notif = NotificationLog.builder()
+                    .messageId("msg_" + java.util.UUID.randomUUID().toString().substring(0, 8))
+                    .recipient(userEmail)
+                    .status(NotificationLog.NotificationStatus.SENT)
+                    .timestamp(java.time.LocalDateTime.now())
+                    // Optional: Add a note to the errorLog/diagnostics column to show it was a withdrawal receipt!
+                    .errorLog("System Event: Withdrawal Receipt Delivered")
+                    .build();
+            notificationRepo.save(notif);
+        }
 
         return ResponseEntity.ok(Map.of("message", "Consent successfully withdrawn"));
     }

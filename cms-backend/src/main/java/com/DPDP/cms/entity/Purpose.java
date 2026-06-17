@@ -8,6 +8,7 @@ import lombok.*;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Purpose {
 
     @Id
@@ -21,6 +22,10 @@ public class Purpose {
 
     private String description;
 
-    @Column(name = "is_mandatory")
-    private boolean mandatory;
+    // FIXED: Using 'Boolean' class instead of primitive 'boolean' prevents the JSON null error!
+    // We default it to true so new purposes are active immediately.
+    private Boolean isActive = true;
+
+   @Column(name = "is_mandatory")
+    private Boolean mandatory = false;
 }

@@ -5,4 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
+    java.util.List<com.DPDP.cms.entity.AuditLog> findByUserId(String userId);
 }

@@ -21,7 +21,14 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
-                        .anyRequest().permitAll()
+                        .requestMatchers("/api/consent/validate").permitAll() //hasAuthority("SCOPE_validate:consent")
+                        .requestMatchers("/api/admin/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+
+                // 4. Configure OAuth2 Resource Server for Auth0 JWTs
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(Customizer.withDefaults())
                 );
 
         return http.build();
@@ -31,21 +38,9 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration configuration = new CorsConfiguration();
-
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://localhost:3000"
-        ));
-
-        configuration.setAllowedMethods(List.of(
-                "GET",
-                "POST",
-                "PUT",
-                "DELETE",
-                "OPTIONS"
-        ));
-
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-User-Email", "X-User-Id"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source =

@@ -31,5 +31,5 @@ public class ConsentArtifact {
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
-    public enum ConsentStatus { ACTIVE, WITHDRAWN, EXPIRED }
+    public enum ConsentStatus { ACTIVE, WITHDRAWN, EXPIRED, REVOKED_BY_SYSTEM }
 }
