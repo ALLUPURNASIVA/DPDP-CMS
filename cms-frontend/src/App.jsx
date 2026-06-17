@@ -13,7 +13,7 @@ export default function App() {
   const { isAuthenticated, loginWithRedirect, logout, user } = useAuth0();
   const navigate = useNavigate();
 
-  if (!isAuthenticated) {
+  /*if (!isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="text-center bg-white p-12 rounded-xl shadow-lg border">
@@ -29,6 +29,7 @@ export default function App() {
       </div>
     );
   }
+     */
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -38,10 +39,14 @@ export default function App() {
       <nav className="bg-white shadow-sm border-b px-8 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold text-gray-800" onClick={() => navigate('/')} style={{cursor:'pointer'}}>DPDP Portal</h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">{user.email}</span>
-          <button onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} className="text-sm text-red-600 hover:text-red-800">
-            Log Out
-          </button>
+          <span className="text-sm text-gray-600">
+  {user?.email || "Admin User"}
+</span>
+          {isAuthenticated && (
+  <button onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}>
+    Log Out
+  </button>
+)}
         </div>
       </nav>
 

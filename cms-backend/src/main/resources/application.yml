@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/cms
     username: postgres     # Change to your PostgreSQL username
-    password: 1234     # Change to your PostgreSQL password
+    password: bhavana123    # Change to your PostgreSQL password
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -35,5 +35,14 @@ spring:
           issuer-uri: https://dev-m6frsjfbk7k258zu.us.auth0.com/
           audiences: https://cms-api
 
-server:
+
+  server:
   port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+
+logging:
+  level:
+    org.springframework.web: DEBUG
+    org.hibernate: ERROR

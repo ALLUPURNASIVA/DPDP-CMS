@@ -2,25 +2,22 @@ package com.DPDP.cms.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.Setter;
 
 @Entity
-@Table(name = "purposes")
-@Data
+@Table(name = "fiduciaries")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Purpose {
+@Builder
+public class Fiduciary {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "tenant_id")
     private String tenantId;
 
     private String name;
-
-    private String description;
-
-    @Column(name = "is_mandatory")
-    private boolean mandatory;
 }
