@@ -16,6 +16,10 @@ public class Purpose {
     private String name;
     private String description;
 
+    // FIXED: Using 'Boolean' class instead of primitive 'boolean' prevents the JSON null error!
+    // We default it to true so new purposes are active immediately.
+    private Boolean isActive = true;
+
     @Column(name = "is_mandatory")
-    private boolean isMandatory;
+    private Boolean isMandatory = false;
 }

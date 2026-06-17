@@ -28,6 +28,7 @@ public class SecurityConfig {
                 // 3. Configure Route Authorization
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/consent/validate").permitAll() //hasAuthority("SCOPE_validate:consent")
+                        .requestMatchers("/api/admin/**").permitAll()
                         .anyRequest().authenticated()
                 )
 
@@ -44,7 +45,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-User-Email"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-User-Email", "X-User-Id"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

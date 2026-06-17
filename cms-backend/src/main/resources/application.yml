@@ -37,3 +37,9 @@ spring:
 
 server:
   port: 8080
+
+auth0:
+  domain: dev-m6frsjfbk7k258zu.us.auth0.com
+  management:
+    client-id: xDE28l12I1qmh7PfLhcYTTpmYRlxT4DN
+    client-secret: rk0bWY5FejbsbJEz-04DLtGLXLBquZ3xHSfFPQNzYYysjrhcGFrcheCbbhs9BzUt

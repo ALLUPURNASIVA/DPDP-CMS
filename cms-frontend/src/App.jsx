@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast';
 // Import our page components
 import FiduciaryList from './pages/GeneralUser/FiduciaryList';
 import ConsentManager from './pages/GeneralUser/ConsentManager';
+import AccountSettings from './pages/GeneralUser/AccountSettings'; // <-- NEW IMPORT
 import Validator from './pages/Fiduciary/Validator';
 import AdminPanel from './pages/Admin/AdminPanel';
 
@@ -37,9 +38,21 @@ export default function App() {
       {/* Universal Top Nav */}
       <nav className="bg-white shadow-sm border-b px-8 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold text-gray-800" onClick={() => navigate('/')} style={{cursor:'pointer'}}>DPDP Portal</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">{user.email}</span>
-          <button onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} className="text-sm text-red-600 hover:text-red-800">
+        <div className="flex items-center gap-5">
+          <span className="text-sm font-medium text-gray-600">{user.email}</span>
+          
+          {/* NEW SETTINGS BUTTON */}
+          <button 
+            onClick={() => navigate('/user/settings')} 
+            className="text-sm text-slate-600 hover:text-slate-900 font-bold flex items-center gap-1 transition"
+          >
+            ⚙️ Settings
+          </button>
+
+          <button 
+            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} 
+            className="text-sm font-bold text-red-600 hover:text-red-800 transition"
+          >
             Log Out
           </button>
         </div>
@@ -53,6 +66,7 @@ export default function App() {
           {/* General User Routes */}
           <Route path="/user/companies" element={<FiduciaryList />} />
           <Route path="/user/consent/:tenantId" element={<ConsentManager />} />
+          <Route path="/user/settings" element={<AccountSettings />} /> {/* <-- NEW ROUTE */}
           
           {/* Fiduciary Route */}
           <Route path="/fiduciary/validate" element={<Validator />} />

@@ -9,33 +9,38 @@ export default function ConsentManager() {
   const navigate = useNavigate();
   const { user, getAccessTokenSilently } = useAuth0();
   
-  const [history, setHistory] = useState([]);
-  const [availablePurposes, setAvailablePurposes] = useState([]);
-  const [selectedPurposes, setSelectedPurposes] = useState([]);
+  // State Management
+  const [history, setHistory] = useState([]); // Stores the user's past and present consent actions
+  const [availablePurposes, setAvailablePurposes] = useState([]); // Purposes the user can still opt into
+  const [selectedPurposes, setSelectedPurposes] = useState([]); // Checkboxes the user has currently ticked
 
+  // Trigger data fetch whenever the component loads or the URL tenant ID changes
   useEffect(() => {
     fetchDashboardData();
-  }, [tenantId]); // Re-fetch if the URL tenant changes
+  }, [tenantId]);
 
   const fetchDashboardData = async () => {
     try {
       const api = await getSecureClient(getAccessTokenSilently);
       
-      // Fetch both history and available purposes simultaneously
+      // Step 1: Fetch both the user's personal consent history AND the platform's current list of live purposes simultaneously
       const [historyRes, purposesRes] = await Promise.all([
         api.get('/consent/history'),
-        api.get(`/consent/purposes/${tenantId}`)
+        api.get('/purposes') 
       ]);
       
-      // Filter the global history to ONLY show records for the company we are currently viewing
+      // Step 2: Filter the global history to ONLY show records for the specific company (tenant) we are currently viewing
       const currentTenantHistory = historyRes.data.filter(h => h.tenantId === tenantId);
       setHistory(currentTenantHistory);
       
-      // Filter out purposes the user has already actively consented to for THIS company
+      // Step 3: Determine which purposes the user is CURRENTLY subscribed to.
+      // COMPLIANCE LOGIC: We explicitly check that the purpose itself hasn't been "soft-deleted" by an Admin (isActive !== false).
+      // If an Admin retired it, we do not count it as an active consent anymore.
       const activeConsentPurposeIds = currentTenantHistory
-        .filter(h => h.status === 'ACTIVE')
+        .filter(h => h.status === 'ACTIVE' && h.purpose.isActive !== false) 
         .map(h => h.purpose.id);
         
+      // Step 4: Filter out the purposes the user has already actively consented to, leaving only the "unconsented" ones for the checkbox list
       const unconsentedPurposes = purposesRes.data.filter(
         p => !activeConsentPurposeIds.includes(p.id)
       );
@@ -47,6 +52,7 @@ export default function ConsentManager() {
     }
   };
 
+  // Handles checking/unchecking boxes in the UI before submission
   const handleTogglePurpose = (purposeId) => {
     setSelectedPurposes(prev => 
       prev.includes(purposeId) 
@@ -55,34 +61,34 @@ export default function ConsentManager() {
     );
   };
 
+  // Submits the newly checked purposes to the backend
   const handleSubmitConsent = async () => {
     if (selectedPurposes.length === 0) return;
     
     try {
       const api = await getSecureClient(getAccessTokenSilently);
-      // ADD THE HEADERS CONFIGURATION HERE:
       await api.post(`/consent/collect/${tenantId}`, selectedPurposes, {
-        headers: { 'X-User-Email': user?.email }
+        headers: { 'X-User-Email': user?.email } // Passing user email for the notification microservice
       });
       
       toast.success('Consents granted successfully!');
-      setSelectedPurposes([]); 
-      fetchDashboardData();    
+      setSelectedPurposes([]); // Clear the checkboxes
+      fetchDashboardData();    // Refresh the table to move them to "Currently Active"
     } catch (e) {
       toast.error('Failed to submit consents');
     }
   };
 
+  // Revokes a previously granted consent
   const handleWithdraw = async (artifactId) => {
     try {
       const api = await getSecureClient(getAccessTokenSilently);
-      // ADD THE HEADERS CONFIGURATION HERE (Notice the empty {} for the body):
       await api.post(`/consent/withdraw/${artifactId}`, {}, {
         headers: { 'X-User-Email': user?.email }
       });
       
       toast.success('Consent withdrawn. Processing stopped.');
-      fetchDashboardData(); 
+      fetchDashboardData(); // Refresh to move it to the History Log
     } catch (e) {
       toast.error('Failed to withdraw consent');
     }
@@ -110,7 +116,9 @@ export default function ConsentManager() {
 
       <div className="grid md:grid-cols-3 gap-8">
         
-        {/* Left Column: Grant New Consents */}
+        {/* ========================================= */}
+        {/* LEFT COLUMN: GRANT NEW CONSENTS           */}
+        {/* ========================================= */}
         <div className="md:col-span-1">
           <div className="bg-white shadow rounded-lg p-6 border border-gray-200">
             <h2 className="text-lg font-semibold mb-4 border-b pb-2">Provide Consent</h2>
@@ -147,7 +155,9 @@ export default function ConsentManager() {
           </div>
         </div>
 
-        {/* Right Column: Dashboards */}
+        {/* ========================================= */}
+        {/* RIGHT COLUMN: DASHBOARDS (Active & Log)   */}
+        {/* ========================================= */}
         <div className="md:col-span-2 space-y-6">
           
           {/* Section 1: Active Consents */}
@@ -164,7 +174,8 @@ export default function ConsentManager() {
                   </tr>
                 </thead>
                 <tbody>
-                  {history.filter(item => item.status === 'ACTIVE').map(item => (
+                  {/* COMPLIANCE LOGIC: Only show here if user status is ACTIVE AND the purpose is still legally active in the database */}
+                  {history.filter(item => item.status === 'ACTIVE' && item.purpose.isActive !== false).map(item => (
                     <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="py-4 text-sm text-gray-800">
                         <span className="font-medium">{item.purpose.name}</span>
@@ -184,7 +195,7 @@ export default function ConsentManager() {
                       </td>
                     </tr>
                   ))}
-                  {history.filter(item => item.status === 'ACTIVE').length === 0 && (
+                  {history.filter(item => item.status === 'ACTIVE' && item.purpose.isActive !== false).length === 0 && (
                     <tr>
                       <td colSpan="3" className="text-center py-6 text-gray-500 italic">
                         You have no active consents with this company.
@@ -196,7 +207,7 @@ export default function ConsentManager() {
             </div>
           </div>
 
-          {/* Section 2: Past History (Withdrawn/Expired) */}
+          {/* Section 2: Past History (Withdrawn/Expired/Retired) */}
           <div className="bg-white shadow rounded-lg p-6 border border-gray-200">
             <h2 className="text-lg font-semibold mb-4 border-b pb-2 text-gray-800">Consent History Log</h2>
             
@@ -210,16 +221,19 @@ export default function ConsentManager() {
                   </tr>
                 </thead>
                 <tbody>
-                  {history.filter(item => item.status !== 'ACTIVE').map(item => (
+                  {/* COMPLIANCE LOGIC: Show here if the user withdrew consent OR if the platform Admin soft-deleted the purpose entirely */}
+                  {history.filter(item => item.status !== 'ACTIVE' || item.purpose.isActive === false).map(item => (
                     <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="py-4 text-sm text-gray-800">
                         <span className="font-medium">{item.purpose.name}</span>
                       </td>
                       <td>
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.status === 'WITHDRAWN' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                          item.purpose.isActive === false ? 'bg-slate-200 text-slate-700' : // Renders if Admin retired it
+                          item.status === 'WITHDRAWN' ? 'bg-red-100 text-red-800' : 
+                          'bg-gray-100 text-gray-800'
                         }`}>
-                          {item.status}
+                          {item.purpose.isActive === false ? 'PURPOSE RETIRED' : item.status}
                         </span>
                       </td>
                       <td className="text-sm text-gray-600">
@@ -227,7 +241,7 @@ export default function ConsentManager() {
                       </td>
                     </tr>
                   ))}
-                  {history.filter(item => item.status !== 'ACTIVE').length === 0 && (
+                  {history.filter(item => item.status !== 'ACTIVE' || item.purpose.isActive === false).length === 0 && (
                     <tr>
                       <td colSpan="3" className="text-center py-6 text-gray-500 italic">
                         No previous history found.
@@ -240,7 +254,6 @@ export default function ConsentManager() {
           </div>
 
         </div>
-        
       </div>
     </div>
   );
