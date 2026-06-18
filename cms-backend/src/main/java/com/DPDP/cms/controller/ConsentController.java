@@ -84,7 +84,7 @@ public class ConsentController {
                     .purpose(purpose)
                     .status(ConsentArtifact.ConsentStatus.ACTIVE)
                     .grantedAt(LocalDateTime.now())
-                    .expiresAt(LocalDateTime.now().plusYears(1))
+                    .expiresAt(LocalDateTime.now().plusMonths(6))
                     .build();
             consentRepo.save(artifact);
         });

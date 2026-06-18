@@ -30,5 +30,5 @@ public class AuditLog {
     @Column(name = "cryptographic_hash")
     private String cryptographicHash;
 
-    public enum ActionType { GRANT, WITHDRAW, UPDATE, VALIDATE }
+    public enum ActionType { GRANT, WITHDRAW, UPDATE, VALIDATE, EXPIRED }
 }

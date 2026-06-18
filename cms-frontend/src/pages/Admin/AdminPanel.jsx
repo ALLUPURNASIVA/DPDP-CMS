@@ -286,32 +286,50 @@ export default function AdminPanel() {
                   auditLogs.map((log) => (
                     <tr
                       key={log.id}
-                      className="border-b hover:bg-gray-50"
+                      className="border-b hover:bg-gray-50 text-xs font-mono text-gray-600"
                     >
-                      <td className="py-3 px-4">
+                      {/* 1. Timestamp */}
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {new Date(log.timestamp).toLocaleString()}
                       </td>
 
+                      {/* 2. Action (With restored color formatting and EXPIRED badge) */}
                       <td className="py-3 px-4">
-                        {log.actionType}
+                        <span className={`px-2 py-1 rounded font-bold font-sans ${
+                          log.actionType === 'GRANT' ? 'bg-green-100 text-green-800' : 
+                          log.actionType === 'WITHDRAW' ? 'bg-red-100 text-red-800' : 
+                          log.actionType === 'VALIDATE' ? 'bg-blue-100 text-blue-800' : 
+                          log.actionType === 'EXPIRED' ? 'bg-amber-100 text-amber-800' : 
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {log.actionType}
+                        </span>
                       </td>
 
-                      <td className="py-3 px-4">
+                      {/* 3. User ID */}
+                      <td className="py-3 px-4 truncate max-w-[120px]" title={log.userId}>
                         {log.userId}
                       </td>
 
-                      <td className="py-3 px-4">
+                      {/* 4. Tenant */}
+                      <td className="py-3 px-4 font-sans font-medium text-slate-800">
                         {log.tenantId}
                       </td>
 
+                      {/* 5. Details (Hardcoded to N/A since your Java backend doesn't have this field) */}
                       <td className="py-3 px-4">
-                        {log.sourceIp}
+                        N/A
                       </td>
-                      <td className="py-3 px-4 truncate max-w-[120px]" title={log.userId}>{log.userId}</td>
-                      <td className="py-3 px-4 font-sans font-medium text-slate-800">{log.tenantId}</td>
-                      <td className="py-3 px-4">Purpose ID: {log.details || 'N/A'}</td>
-                      <td className="py-3 px-4">{log.sourceIp || 'N/A'}</td>
-                      <td className="py-3 px-4 text-gray-400 truncate max-w-[120px]" title={log.cryptographicHash}>{log.cryptographicHash ? `${log.cryptographicHash.substring(0, 16)}...` : 'N/A'}</td>
+
+                      {/* 6. Source IP */}
+                      <td className="py-3 px-4">
+                        {log.sourceIp || 'N/A'}
+                      </td>
+
+                      {/* 7. SHA-256 Hash */}
+                      <td className="py-3 px-4 text-gray-400 truncate max-w-[120px]" title={log.cryptographicHash}>
+                        {log.cryptographicHash ? `${log.cryptographicHash.substring(0, 16)}...` : 'N/A'}
+                      </td>
                     </tr>
                   ))
                 )}
