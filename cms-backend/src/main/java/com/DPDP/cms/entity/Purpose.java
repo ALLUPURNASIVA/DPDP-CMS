@@ -28,4 +28,7 @@ public class Purpose {
 
    @Column(name = "is_mandatory")
     private Boolean mandatory = false;
+
+    @Column(name = "retention_period_months")
+    private Integer retentionPeriodMonths = 6;
 }

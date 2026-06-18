@@ -111,63 +111,6 @@ public ResponseEntity<?> deleteFiduciary(
     );
 }
 
-    // =====================================================
-    // Purpose Management
-    // =====================================================
-
-   
-// public ResponseEntity<?> createPurpose(
-//         @RequestBody Purpose purpose) {
-
-//     try {
-
-//         System.out.println("TENANT = " + purpose.getTenantId());
-//         System.out.println("NAME = " + purpose.getName());
-//         System.out.println("DESC = " + purpose.getDescription());
-
-//         Purpose saved = purposeRepo.save(purpose);
-
-//         return ResponseEntity.ok(saved);
-
-//     } catch (Exception e) {
-
-//         e.printStackTrace();
-
-//         return ResponseEntity.internalServerError()
-//                 .body(Map.of("error", e.getMessage()));
-//     }
-// }
-    // @GetMapping("/admin/purposes")
-    // public List<Purpose> getAllPurposes() {
-    //     return purposeRepo.findAll();
-    // }
-
-    // @PutMapping("/admin/purposes/{id}")
-    // public ResponseEntity<?> updatePurpose(
-    //         @PathVariable Long id,
-    //         @RequestBody Purpose updatedPurpose) {
-
-    //     Purpose purpose = purposeRepo.findById(id)
-    //             .orElseThrow(() ->
-    //                     new RuntimeException("Purpose not found"));
-
-    //     purpose.setTenantId(updatedPurpose.getTenantId());
-    //     purpose.setName(updatedPurpose.getName());
-    //     purpose.setDescription(updatedPurpose.getDescription());
-    //     purpose.setMandatory(updatedPurpose.isMandatory());
-
-    //     Purpose saved = purposeRepo.save(purpose);
-
-    //     return ResponseEntity.ok(
-    //             Map.of(
-    //                     "message", "Purpose updated",
-    //                     "id", saved.getId()
-    //             )
-    //     );
-    // }
-
-    // --- JOURNEY 2: PUBLIC USER ENDPOINTS ---
-    // @PostMapping("/admin/purposes")
     @GetMapping("/purposes")
     public ResponseEntity<List<Purpose>> getPublicPurposes() {
         // Fetch only ACTIVE purposes for the users to see on the Consent Form
@@ -188,11 +131,14 @@ public ResponseEntity<?> deleteFiduciary(
         return ResponseEntity.ok(activePurposes);
     }
 
-    
+
     @PostMapping("/admin/purposes")
-public ResponseEntity<Purpose> createPurpose(@RequestBody Purpose purpose) {
-        // Ensure it is legally active when created
+    public ResponseEntity<Purpose> createPurpose(@RequestBody Purpose purpose) {
         purpose.setIsActive(true);
+        // Fallback safeguard: if the frontend sends a null duration, default to 6
+        if (purpose.getRetentionPeriodMonths() == null) {
+            purpose.setRetentionPeriodMonths(6);
+        }
         return ResponseEntity.ok(purposeRepo.save(purpose));
     }
 
@@ -201,6 +147,10 @@ public ResponseEntity<Purpose> createPurpose(@RequestBody Purpose purpose) {
         Purpose purpose = purposeRepo.findById(id).orElseThrow(() -> new RuntimeException("Purpose not found"));
         purpose.setName(purposeDetails.getName());
         purpose.setDescription(purposeDetails.getDescription());
+        // FIXED: Now properly updates the mandatory flag and the new retention period
+        purpose.setMandatory(purposeDetails.getMandatory());
+        purpose.setRetentionPeriodMonths(purposeDetails.getRetentionPeriodMonths());
+
         return ResponseEntity.ok(purposeRepo.save(purpose));
     }
 

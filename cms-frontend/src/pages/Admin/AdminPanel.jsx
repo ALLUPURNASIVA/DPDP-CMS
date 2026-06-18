@@ -24,6 +24,7 @@ export default function AdminPanel() {
   const [newPurposeDesc, setNewPurposeDesc] = useState('');
   const [mandatory, setMandatory] = useState(false);
   const [editingId, setEditingId] = useState(null); 
+  const [retentionPeriod, setRetentionPeriod] = useState(6);
 
   const [notifFilter, setNotifFilter] = useState('All');
   const [selectedUserDetails, setSelectedUserDetails] = useState(null);
@@ -86,6 +87,7 @@ export default function AdminPanel() {
   setNewPurposeName(purpose.name);
   setNewPurposeDesc(purpose.description);
   setMandatory(purpose.mandatory || false);
+  setRetentionPeriod(purpose.retentionPeriodMonths || 6);
 };
 
   const handleCancelEdit = () => {
@@ -93,6 +95,7 @@ export default function AdminPanel() {
   setNewPurposeName('');
   setNewPurposeDesc('');
   setMandatory(false);
+  setRetentionPeriod(6);
 };
 
   const handleSavePurpose = async (e) => {
@@ -106,14 +109,16 @@ export default function AdminPanel() {
         await api.put(`/admin/purposes/${editingId}`, {
           name: newPurposeName,
           description: newPurposeDesc,
-          mandatory: mandatory
+          mandatory: mandatory,
+          retentionPeriodMonths: parseInt(retentionPeriod)
         });
         toast.success("Purpose Successfully Updated!");
       } else {
         await api.post('/admin/purposes', {
             name: newPurposeName,
             description: newPurposeDesc,
-            mandatory: mandatory
+            mandatory: mandatory,
+            retentionPeriodMonths: parseInt(retentionPeriod)
           });
         toast.success("New Purpose Created!");
       }
@@ -382,7 +387,20 @@ export default function AdminPanel() {
                   <form onSubmit={handleSavePurpose}>
                     <input required type="text" placeholder="Name (e.g. AI Training)" className="w-full p-2.5 text-sm border border-gray-300 rounded mb-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" value={newPurposeName} onChange={e => setNewPurposeName(e.target.value)} />
                     <textarea placeholder="Description..." className="w-full p-2.5 text-sm border border-gray-300 rounded mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none h-24" value={newPurposeDesc} onChange={e => setNewPurposeDesc(e.target.value)}></textarea>
-                   <div className="mb-4 flex items-center gap-2">
+                    <div className="mb-4">
+                      <label className="block text-xs font-bold text-gray-600 mb-1">Data Retention Period</label>
+                      <select 
+                        value={retentionPeriod} 
+                        onChange={(e) => setRetentionPeriod(e.target.value)}
+                        className="w-full p-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                        <option value={1}>1 Month (Strict Privacy)</option>
+                        <option value={3}>3 Months</option>
+                        <option value={6}>6 Months (Standard)</option>
+                        <option value={12}>1 Year (Operational)</option>
+                        <option value={60}>5 Years (Financial / Legal)</option>
+                      </select>
+                    </div>
+                    <div className="mb-4 flex items-center gap-2">
                       <input
                         type="checkbox"
                         id="mandatory"
