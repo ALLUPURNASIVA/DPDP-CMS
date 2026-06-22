@@ -8,5 +8,5 @@ import org.springframework.transaction.annotation.Transactional;
 public interface PurposeRepository extends JpaRepository<Purpose, Long> {
     List<Purpose> findByTenantId(String tenantId);
     @Transactional
-void deleteByTenantId(String tenantId);
+    void deleteByTenantId(String tenantId);
 }

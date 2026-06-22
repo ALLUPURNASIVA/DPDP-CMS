@@ -21,4 +21,7 @@ public interface ConsentArtifactRepository extends JpaRepository<ConsentArtifact
     // Finds active consents expiring between X and Y dates
     @Query("SELECT c FROM ConsentArtifact c WHERE c.status = 'ACTIVE' AND c.expiresAt > :start AND c.expiresAt <= :end")
     List<ConsentArtifact> findConsentsExpiringInWindow(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
+
+    List<ConsentArtifact> findByTenantIdAndStatus(String tenantId, ConsentArtifact.ConsentStatus status);
+    void deleteByTenantId(String tenantId);
 }

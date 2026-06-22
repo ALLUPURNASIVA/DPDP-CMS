@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth0 } from "@auth0/auth0-react";
 import toast from 'react-hot-toast';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getSecureClient } from '../../api';
 
 export default function ConsentManager() {
   const { tenantId } = useParams(); // Grabs the company ID from the URL (e.g., TENANT_A)
   const navigate = useNavigate();
+  const location = useLocation(); // Grabs the state passed from FiduciaryList
   const { user, getAccessTokenSilently } = useAuth0();
+  
+  // Extract the company name, with a fallback to the tenantId just in case
+  const companyName = location.state?.companyName || tenantId;
   
   // State Management
   const [history, setHistory] = useState([]); // Stores the user's past and present consent actions
@@ -26,7 +30,7 @@ export default function ConsentManager() {
       // Step 1: Fetch both the user's personal consent history AND the platform's current list of live purposes simultaneously
       const [historyRes, purposesRes] = await Promise.all([
         api.get('/consent/history'),
-        api.get('/purposes') 
+        api.get(`/purposes/${tenantId}`) // <-- Now it explicitly asks for Swiggy's purposes
       ]);
       
       // Step 2: Filter the global history to ONLY show records for the specific company (tenant) we are currently viewing
@@ -110,7 +114,8 @@ export default function ConsentManager() {
       <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Consent Management</h1>
-          <p className="text-sm text-gray-500">Managing data preferences for: <span className="font-semibold text-blue-600">{tenantId}</span></p>
+          {/* UPDATED UI HEADER HERE */}
+          <p className="text-sm text-gray-500">Managing data preferences for: <span className="font-semibold text-blue-600">{companyName}</span></p>
         </div>
       </div>
 

@@ -3,7 +3,7 @@ import { getSecureClient } from '../../api';
 import { useAuth0 } from '@auth0/auth0-react';
 import toast from 'react-hot-toast';
 
-import CompanyManagement from "./CompanyManagement";
+import CompanyManagement from "../Fiduciary/CompanyManagement";
 
 
 export default function AdminPanel() {

@@ -14,4 +14,6 @@ public class Tenant {
     private String id;
 
     private String name;
+    // --- NEW FIELD FOR SOFT DELETION ---
+    private Boolean isActive = true;
 }

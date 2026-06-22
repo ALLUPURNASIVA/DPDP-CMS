@@ -1,5 +1,6 @@
 package com.DPDP.cms.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -22,4 +23,8 @@ public class User {
     private String email;
 
     private String role;
+
+    // --- NEW FIELD FOR B2B IDENTITY ---
+    @Column(name = "tenant_id")
+    private String tenantId;
 }

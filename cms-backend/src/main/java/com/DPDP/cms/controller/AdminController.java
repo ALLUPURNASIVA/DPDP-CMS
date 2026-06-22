@@ -4,15 +4,10 @@ import com.DPDP.cms.entity.AuditLog;
 import com.DPDP.cms.entity.ConsentArtifact; // Added for cascade revocation
 import com.DPDP.cms.entity.NotificationLog;
 import com.DPDP.cms.entity.Purpose;
-import com.DPDP.cms.entity.Fiduciary;
-//import com.DPDP.cms.entity.Purpose;
-import com.DPDP.cms.entity.User;
 import com.DPDP.cms.repository.AuditLogRepository;
 import com.DPDP.cms.repository.ConsentArtifactRepository; // Added for cascade revocation
 import com.DPDP.cms.repository.NotificationLogRepository;
 import com.DPDP.cms.repository.PurposeRepository;
-import com.DPDP.cms.repository.FiduciaryRepository;
-//import com.DPDP.cms.repository.PurposeRepository;
 import com.DPDP.cms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +19,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
+
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -31,92 +30,134 @@ public class AdminController {
 
     private final PurposeRepository purposeRepo;
     private final AuditLogRepository auditLogRepo;
-   // private final PurposeRepository purposeRepo;
     private final UserRepository userRepo;
-    private final FiduciaryRepository fiduciaryRepo;
     private final TenantRepository tenantRepo;
     private final ConsentArtifactRepository consentRepo;
     private final NotificationLogRepository notificationRepo;
-    // =====================================================
-    // Journey 1 - Fiduciary Companies
-    // =====================================================
 
     @GetMapping("/fiduciaries")
-    public List<Fiduciary> getFiduciaries() {
-        return fiduciaryRepo.findAll();
+    public List<Tenant> getFiduciaries() {
+        // Only return companies that are legally active to the General Public
+        return tenantRepo.findAll().stream()
+                .filter(t -> t.getIsActive() != null && t.getIsActive())
+                .collect(Collectors.toList());
     }
 
     // =====================================================
-    // Company Management
+    // Company (Tenant) Management
     // =====================================================
 
     @GetMapping("/admin/fiduciaries")
-    public List<Fiduciary> getAllFiduciaries() {
-        return fiduciaryRepo.findAll();
+    public List<Tenant> getAllFiduciaries() {
+        return tenantRepo.findAll().stream()
+                .filter(t -> t.getIsActive() != null && t.getIsActive())
+                .collect(Collectors.toList());
     }
 
-   @PostMapping("/admin/fiduciaries")
-public Fiduciary createFiduciary(
-        @RequestBody Fiduciary fiduciary) {
+    @PostMapping("/admin/fiduciaries")
+    public ResponseEntity<?> createFiduciary(@RequestBody Map<String, String> payload) {
+        String newTenantId = payload.get("tenantId");
 
-    Fiduciary saved =
-            fiduciaryRepo.save(fiduciary);
+        // SECURITY CHECK: Prevent overwriting or resurrecting existing records
+        if (tenantRepo.existsById(newTenantId)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "A company or historical record with this Tenant ID already exists. Please use a unique ID."));
+        }
 
-    Tenant tenant = new Tenant();
+        // 1. Create the new Company
+        Tenant tenant = new Tenant();
+        tenant.setId(newTenantId);
+        tenant.setName(payload.get("name"));
+        tenantRepo.save(tenant);
 
-    tenant.setId(saved.getTenantId());
-    tenant.setName(saved.getName());
+        // 2. Automatically generate the default purpose templates
+        List<Purpose> defaultPurposes = List.of(
+                Purpose.builder()
+                        .tenantId(newTenantId)
+                        .name("Core Service Delivery")
+                        .description("Essential data required to provide the core application functionality.")
+                        .isActive(true)
+                        .mandatory(true) // Users cannot opt out of this
+                        .retentionPeriodMonths(12)
+                        .build(),
+                Purpose.builder()
+                        .tenantId(newTenantId)
+                        .name("Marketing & Communications")
+                        .description("Receive promotional emails, product updates, and special offers.")
+                        .isActive(true)
+                        .mandatory(false)
+                        .retentionPeriodMonths(3)
+                        .build(),
+                Purpose.builder()
+                        .tenantId(newTenantId)
+                        .name("Product Analytics")
+                        .description("Allow us to track platform usage to improve the user experience.")
+                        .isActive(true)
+                        .mandatory(false)
+                        .retentionPeriodMonths(6)
+                        .build()
+        );
 
-    tenantRepo.save(tenant);
+        // Save all default purposes to the database at once
+        purposeRepo.saveAll(defaultPurposes);
 
-    return saved;
-}
+        return ResponseEntity.ok(tenant);
+    }
 
     @PutMapping("/admin/fiduciaries/{id}")
-    public Fiduciary updateFiduciary(
-            @PathVariable Long id,
-            @RequestBody Fiduciary updated) {
+    public Tenant updateFiduciary(@PathVariable String id, @RequestBody Map<String, String> payload) {
+        Tenant tenant = tenantRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Company not found"));
 
-        Fiduciary fiduciary = fiduciaryRepo.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException("Company not found"));
-
-        fiduciary.setTenantId(updated.getTenantId());
-        fiduciary.setName(updated.getName());
-
-        return fiduciaryRepo.save(fiduciary);
+        tenant.setName(payload.get("name"));
+        return tenantRepo.save(tenant);
     }
 
+    @Transactional
     @DeleteMapping("/admin/fiduciaries/{id}")
-public ResponseEntity<?> deleteFiduciary(
-        @PathVariable Long id) {
+    public ResponseEntity<?> deleteFiduciary(@PathVariable String id) {
+        try {
+            // 1. Soft Delete the Company (Tenant)
+            Tenant tenant = tenantRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Company not found"));
+            tenant.setIsActive(false);
+            tenantRepo.save(tenant);
 
-    Fiduciary fiduciary = fiduciaryRepo.findById(id)
-            .orElseThrow(() ->
-                    new RuntimeException("Company not found"));
+            // 2. Soft Delete all associated Data Purposes
+            // (Assuming you added findByTenantId to PurposeRepository earlier)
+            List<Purpose> purposes = purposeRepo.findByTenantId(id);
+            for (Purpose p : purposes) {
+                p.setIsActive(false);
+            }
+            purposeRepo.saveAll(purposes);
 
-    String tenantId = fiduciary.getTenantId();
+            // 3. Cascade Revocation: Legally invalidate all active consents
+            List<ConsentArtifact> activeConsents = consentRepo.findByTenantIdAndStatus(
+                    id, ConsentArtifact.ConsentStatus.ACTIVE);
 
-    // 1. Delete purposes
-    purposeRepo.deleteByTenantId(tenantId);
+            for (ConsentArtifact consent : activeConsents) {
+                consent.setStatus(ConsentArtifact.ConsentStatus.REVOKED_BY_SYSTEM);
+            }
+            consentRepo.saveAll(activeConsents);
 
-    // 2. Delete tenant
-    tenantRepo.deleteById(tenantId);
+            return ResponseEntity.ok(Map.of("message", "Company deactivated and all data processing legally halted."));
 
-    // 3. Delete company
-    fiduciaryRepo.deleteById(id);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to deactivate company: " + e.getMessage()));
+        }
+    }
 
-    return ResponseEntity.ok(
-            Map.of("message", "Company deleted successfully")
-    );
-}
+    // --- JOURNEY 2: PUBLIC USER ENDPOINTS ---
+    // Now requires the tenantId in the URL to isolate data!
+    @GetMapping("/purposes/{tenantId}")
+    public ResponseEntity<List<Purpose>> getPublicPurposesByTenant(@PathVariable String tenantId) {
 
-    @GetMapping("/purposes")
-    public ResponseEntity<List<Purpose>> getPublicPurposes() {
-        // Fetch only ACTIVE purposes for the users to see on the Consent Form
-        List<Purpose> activePurposes = purposeRepo.findAll().stream()
+        // Use the repository method we created earlier to filter by tenant
+        List<Purpose> activePurposes = purposeRepo.findByTenantId(tenantId).stream()
                 .filter(p -> p.getIsActive() != null && p.getIsActive())
                 .collect(Collectors.toList());
+
         return ResponseEntity.ok(activePurposes);
     }
 

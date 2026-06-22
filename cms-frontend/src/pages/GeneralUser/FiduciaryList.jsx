@@ -16,7 +16,6 @@ export default function FiduciaryList() {
 
   const fetchCompanies = async () => {
     const api = await getSecureClient(getAccessTokenSilently);
-    // You will need to add this simple GET endpoint to your backend later
     const res = await api.get('/fiduciaries'); 
     setCompanies(res.data);
   };
@@ -46,7 +45,8 @@ export default function FiduciaryList() {
           <div key={c.id} className="bg-white p-6 border rounded-lg shadow-sm flex justify-between items-center">
             <span className="font-semibold text-lg">{c.name}</span>
             <button 
-              onClick={() => navigate(`/user/consent/${c.tenantId}`)}
+              // THIS IS THE ONLY CHANGED LINE:
+              onClick={() => navigate(`/user/consent/${c.id}`, { state: { companyName: c.name } })}
               className="bg-blue-50 text-blue-600 px-4 py-2 rounded hover:bg-blue-100"
             >
               Manage Consents

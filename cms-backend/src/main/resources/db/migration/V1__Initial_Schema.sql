@@ -27,20 +27,13 @@ CREATE TABLE consent_artifacts (
                                    expires_at TIMESTAMP
 );
 
-CREATE TABLE audit_logs (
-                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                            user_id VARCHAR(255) NOT NULL,
-                            tenant_id VARCHAR(50),
-                            action_type VARCHAR(20) NOT NULL,
-                            timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            source_ip VARCHAR(45),
-                            cryptographic_hash VARCHAR(256) NOT NULL
+CREATE TABLE audit_logs
+(
+    id                 UUID PRIMARY KEY      DEFAULT gen_random_uuid(),
+    user_id            VARCHAR(255) NOT NULL,
+    tenant_id          VARCHAR(50),
+    action_type        VARCHAR(20)  NOT NULL,
+    timestamp          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source_ip          VARCHAR(45),
+    cryptographic_hash VARCHAR(256) NOT NULL
 );
-
--- Insert sample multi-tenant data for testing
-INSERT INTO tenants (id, name) VALUES ('TENANT_A', 'Alpha Corp'), ('TENANT_B', 'Beta LLC');
-
-INSERT INTO purposes (tenant_id, name, description, is_mandatory) VALUES
-                                                                      ('TENANT_A', 'Core Service', 'Essential data required to provide the platform.', TRUE),
-                                                                      ('TENANT_A', 'Marketing', 'Receive promotional emails and offers.', FALSE),
-                                                                      ('TENANT_A', 'Analytics', 'Allow us to track usage to improve the product.', FALSE);
