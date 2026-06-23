@@ -3,6 +3,7 @@ package com.DPDP.cms.repository;
 import com.DPDP.cms.entity.ConsentArtifact;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -24,4 +25,11 @@ public interface ConsentArtifactRepository extends JpaRepository<ConsentArtifact
 
     List<ConsentArtifact> findByTenantIdAndStatus(String tenantId, ConsentArtifact.ConsentStatus status);
     void deleteByTenantId(String tenantId);
+
+    List<ConsentArtifact> findByTenantId(String tenantId);
+
+    // Fetch all consent records for a specific user within your company
+    List<ConsentArtifact> findByUserIdAndTenantId(String userId, String tenantId);
+
+    Optional<ConsentArtifact> findByUserIdAndTenantIdAndPurposeId(String userId, String tenantId, Long purposeId);
 }

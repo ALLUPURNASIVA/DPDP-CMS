@@ -50,6 +50,16 @@ export default function ConsentManager() {
       );
       
       setAvailablePurposes(unconsentedPurposes);
+      
+      // NEW: Automatically pre-select any mandatory purposes
+      // (Checking both 'isMandatory' and 'mandatory' to handle Spring Boot JSON serialization quirks)
+      const mandatoryPurposeIds = unconsentedPurposes
+        .filter(p => p.isMandatory || p.mandatory)
+        .map(p => p.id);
+      if (mandatoryPurposeIds.length > 0) {
+        setSelectedPurposes(mandatoryPurposeIds);
+      }
+
     } catch (e) {
       toast.error("Failed to load dashboard data. Check backend connection.");
       console.error(e);
@@ -136,8 +146,11 @@ export default function ConsentManager() {
                   <label key={purpose.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded border cursor-pointer hover:bg-gray-100 transition">
                     <input 
                       type="checkbox" 
-                      className="mt-1 h-4 w-4 text-blue-600 rounded"
-                      checked={selectedPurposes.includes(purpose.id)}
+                      className={`mt-1 h-4 w-4 text-blue-600 rounded ${
+                        (purpose.isMandatory || purpose.mandatory) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                      }`}
+                      checked={selectedPurposes.includes(purpose.id) || purpose.isMandatory || purpose.mandatory}
+                      disabled={purpose.isMandatory || purpose.mandatory}
                       onChange={() => handleTogglePurpose(purpose.id)}
                     />
                     <div>
@@ -189,14 +202,14 @@ export default function ConsentManager() {
                         {new Date(item.grantedAt).toLocaleDateString()}
                       </td>
                       <td className="text-right">
-                        {item.purpose.isMandatory ? (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold">
+                        {(item.purpose.isMandatory || item.purpose.mandatory) ? (
+                          <span className="px-2 py-1 bg-slate-100 text-slate-500 border border-slate-200 rounded text-xs font-bold uppercase tracking-wider cursor-not-allowed" title="Required to use this service">
                             Mandatory
                           </span>
                         ) : (
                           <button
                             onClick={() => handleWithdraw(item.id)}
-                            className="text-red-600 hover:text-red-800 font-medium text-sm transition-colors bg-red-50 px-3 py-1 rounded"
+                            className="text-red-600 hover:text-red-800 font-medium text-sm transition-colors bg-red-50 hover:bg-red-100 px-3 py-1 rounded"
                           >
                             Withdraw
                           </button>
