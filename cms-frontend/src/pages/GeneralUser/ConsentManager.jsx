@@ -34,8 +34,10 @@ export default function ConsentManager() {
       ]);
       
       // Step 2: Filter the global history to ONLY show records for the specific company (tenant) we are currently viewing
+      
       const currentTenantHistory = historyRes.data.filter(h => h.tenantId === tenantId);
       setHistory(currentTenantHistory);
+      
       
       // Step 3: Determine which purposes the user is CURRENTLY subscribed to.
       // COMPLIANCE LOGIC: We explicitly check that the purpose itself hasn't been "soft-deleted" by an Admin (isActive !== false).
@@ -114,10 +116,10 @@ export default function ConsentManager() {
       {/* Header with Back Button */}
       <div className="flex items-center gap-4 mb-6">
         <button 
-          onClick={() => navigate('/user/companies')}
+          onClick={() => navigate('/user/my-companies')}
           className="text-gray-500 hover:text-blue-600 transition flex items-center gap-1"
         >
-          ← Back to Companies
+          ← Back to MyCompanies
         </button>
       </div>
 

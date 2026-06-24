@@ -1,13 +1,16 @@
 package com.DPDP.cms.controller;
 
+import com.DPDP.cms.dto.*;
 import com.DPDP.cms.entity.AuditLog;
 import com.DPDP.cms.entity.ConsentArtifact; // Added for cascade revocation
 import com.DPDP.cms.entity.NotificationLog;
 import com.DPDP.cms.entity.Purpose;
+import com.DPDP.cms.entity.User;
 import com.DPDP.cms.repository.AuditLogRepository;
 import com.DPDP.cms.repository.ConsentArtifactRepository; // Added for cascade revocation
 import com.DPDP.cms.repository.NotificationLogRepository;
 import com.DPDP.cms.repository.PurposeRepository;
+
 import com.DPDP.cms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,11 +21,8 @@ import com.DPDP.cms.repository.TenantRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
-import org.springframework.transaction.annotation.Transactional;
-
+import jakarta.transaction.Transactional;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -36,11 +36,27 @@ public class AdminController {
     private final NotificationLogRepository notificationRepo;
 
     @GetMapping("/fiduciaries")
-    public List<Tenant> getFiduciaries() {
-        // Only return companies that are legally active to the General Public
-        return tenantRepo.findAll().stream()
+    public List<FiduciaryDto> getPublicFiduciaries() {
+
+        return tenantRepo.findAll()
+                .stream()
                 .filter(t -> t.getIsActive() != null && t.getIsActive())
-                .collect(Collectors.toList());
+                .map(t -> {
+
+                    long purposeCount =
+                            purposeRepo
+                                    .findByTenantId(t.getId())
+                                    .size();
+
+                    return new FiduciaryDto(
+                            t.getId(),      // id
+                            t.getId(),      // tenantId
+                            t.getName(),    // name
+                            purposeCount
+                    );
+
+                })
+                .toList();
     }
 
     // =====================================================

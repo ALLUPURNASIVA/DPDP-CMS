@@ -16,7 +16,7 @@ export default function FiduciaryList() {
 
   const fetchCompanies = async () => {
     const api = await getSecureClient(getAccessTokenSilently);
-    const res = await api.get('/fiduciaries'); 
+    const res = await api.get('/consent/fiduciaries');
     setCompanies(res.data);
   };
 

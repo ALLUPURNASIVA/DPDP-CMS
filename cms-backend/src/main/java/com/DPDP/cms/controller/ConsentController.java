@@ -1,6 +1,7 @@
 package com.DPDP.cms.controller;
 
 
+import com.DPDP.cms.dto.FiduciaryDto;
 import com.DPDP.cms.entity.*;
 import com.DPDP.cms.repository.*;
 import com.DPDP.cms.service.*;
@@ -10,13 +11,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-
+import com.DPDP.cms.repository.TenantRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.ArrayList;
-
+import com.DPDP.cms.dto.ActiveConsentDto;
 @RestController
 @RequestMapping("/api/consent")
 @RequiredArgsConstructor
@@ -28,7 +29,7 @@ public class ConsentController {
     private final EmailService emailService;
     private final UserRepository userRepo;
     private final NotificationLogRepository notificationRepo;
-
+    private final TenantRepository tenantRepo;
     private String getAuth0UserId() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
@@ -118,6 +119,20 @@ public class ConsentController {
     public List<ConsentArtifact> getHistory() {
         return consentRepo.findByUserId(getAuth0UserId());
     }
+    @GetMapping("/active-consents")
+    public List<ActiveConsentDto> getActiveConsents() {
+        return consentRepo.findByUserId(getAuth0UserId())
+                .stream()
+                .filter(consent -> consent.getStatus().name().equals("ACTIVE"))
+                .map(consent -> new ActiveConsentDto(
+                        consent.getTenantId(),
+                        consent.getPurpose().getName(),
+                        consent.getGrantedAt(),
+                        consent.getExpiresAt(),
+                        consent.getStatus().name()
+                ))
+                .toList();
+    }
 
     // Journey 1: Withdraw Consent (Upgraded with Detailed Emails)
     @PostMapping("/withdraw/{artifactId}")
@@ -187,5 +202,28 @@ public class ConsentController {
             System.err.println("Validation Error: " + e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid payload format"));
         }
+    }
+    @GetMapping("/fiduciaries")
+    public List<FiduciaryDto> getPublicFiduciaries() {
+
+        return tenantRepo.findAll()
+                .stream()
+                .filter(t -> t.getIsActive() != null && t.getIsActive())
+                .map(t -> {
+
+                    long purposeCount =
+                            purposeRepo
+                                    .findByTenantId(t.getId())
+                                    .size();
+
+                    return new FiduciaryDto(
+                            t.getId(),
+                            t.getId(),
+                            t.getName(),
+                            purposeCount
+                    );
+
+                })
+                .toList();
     }
 }

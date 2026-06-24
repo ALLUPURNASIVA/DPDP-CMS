@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/cms
     username: ${DB_USERNAME:postgres}     # Change to your PostgreSQL username
-    password: ${DB_PASSWORD:1234}    # Change to your PostgreSQL password
+    password: ${DB_PASSWORD:bhavana123}    # Change to your PostgreSQL password
     driver-class-name: org.postgresql.Driver
 
   jpa:

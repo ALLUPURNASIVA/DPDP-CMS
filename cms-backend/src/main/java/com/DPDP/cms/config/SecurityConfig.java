@@ -21,8 +21,12 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/consent/validate").permitAll() //hasAuthority("SCOPE_validate:consent")
+                        .requestMatchers("/api/consent/validate").permitAll()
                         .requestMatchers("/api/admin/**").permitAll()
+                        .requestMatchers("/api/fiduciaries").permitAll()
+                        .requestMatchers("/api/purposes/**").permitAll()
+                        .requestMatchers("/api/complaints/**").permitAll()
+                        .requestMatchers("/api/fiduciary/stats").permitAll()
                         .anyRequest().authenticated()
                 )
 
