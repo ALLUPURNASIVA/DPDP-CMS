@@ -30,6 +30,27 @@ export default function ActiveConsents() {
       console.error(err);
     }
   };
+  const groupedConsents = consents.reduce(
+  (acc, consent) => {
+
+    if (!acc[consent.tenantId]) {
+      acc[consent.tenantId] = [];
+    }
+
+    acc[consent.tenantId].push(consent);
+
+    return acc;
+
+  },
+  {}
+);
+const colors = [
+  "bg-blue-50 border-blue-200",
+  "bg-green-50 border-green-200",
+  "bg-purple-50 border-purple-200",
+  "bg-pink-50 border-pink-200",
+  "bg-orange-50 border-orange-200"
+];
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -49,8 +70,7 @@ export default function ActiveConsents() {
           View all active consents granted across companies.
         </p>
       </div>
-
-      <div className="space-y-4">
+        <div className="space-y-4">
         {consents.length === 0 && (
           <div className="bg-white border rounded-xl p-10 text-center">
             <h2 className="text-xl font-semibold text-gray-500">
@@ -58,42 +78,101 @@ export default function ActiveConsents() {
             </h2>
           </div>
         )}
+        {Object.entries(groupedConsents).map(
+  ([tenantId, companyConsents], index) => {
 
-        {consents.map((consent, index) => (
-          <div
-            key={index}
-            className="bg-white border rounded-xl p-6 shadow-sm"
-          >
-            <h3 className="text-xl font-bold text-blue-600">
-              {consent.tenantId}
-            </h3>
+    const color =
+      colors[index % colors.length];
 
-            <div className="mt-4 space-y-2">
-              <p>
-                <strong>Purpose:</strong>{" "}
-                {consent.purposeName || "N/A"}
-              </p>
+    return (
 
-              <p>
-                <strong>Granted On:</strong>{" "}
-                {consent.grantedAt
-                  ? new Date(consent.grantedAt).toLocaleDateString()
-                  : "N/A"}
-              </p>
+      <div
+        key={tenantId}
+        className={`border rounded-2xl p-6 shadow-sm ${color}`}
+      >
 
-              <p>
-                <strong>Expires On:</strong>{" "}
-                {consent.expiresAt
-                  ? new Date(consent.expiresAt).toLocaleDateString()
-                  : "N/A"}
-              </p>
+        <h3 className="text-3xl font-bold mb-2">
+  {tenantId.replace("TENANT_", "")}
+</h3>
 
-              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">
-                {consent.status}
-              </span>
+        <p className="text-gray-500 mb-6">
+          {companyConsents.length} Active Consent(s)
+        </p>
+
+        <div className="grid md:grid-cols-2 gap-6">
+
+          {companyConsents.map((consent, idx) => (
+
+            <div
+              key={idx}
+              className="
+              bg-white/70
+              rounded-xl
+              p-5
+              border
+              "
+            >
+
+              <h4 className="font-bold text-lg">
+                {consent.purposeName}
+              </h4>
+
+              <div className="grid grid-cols-3 gap-4 mt-4">
+
+                <div>
+                  <p className="text-gray-500 text-sm">
+                    Granted On
+                  </p>
+
+                  <p>
+                    {new Date(
+                      consent.grantedAt
+                    ).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-gray-500 text-sm">
+                    Expires On
+                  </p>
+
+                  <p>
+                    {new Date(
+                      consent.expiresAt
+                    ).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end">
+
+                  <span className="
+                  bg-green-100
+                  text-green-700
+                  px-3
+                  py-1
+                  rounded-full
+                  text-sm
+                  ">
+                    ACTIVE
+                  </span>
+
+                </div>
+
+              </div>
+
             </div>
-          </div>
-        ))}
+
+          ))}
+
+        </div>
+
+      </div>
+
+    );
+  }
+)}
+        
+
       </div>
     </div>
   );

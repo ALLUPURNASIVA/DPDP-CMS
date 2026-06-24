@@ -68,7 +68,7 @@ export default function UserDashboard() {
 
           <div>
             <h1 className="text-4xl font-bold text-slate-900">
-              Hi {user?.name || "User"} 👋
+              Hi {localStorage.getItem("userName") || user?.name} 
             </h1>
 
             <p className="text-gray-500 mt-3 text-lg max-w-lg leading-relaxed">

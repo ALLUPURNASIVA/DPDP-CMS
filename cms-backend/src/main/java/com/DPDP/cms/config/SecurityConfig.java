@@ -25,6 +25,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").permitAll()
                         .requestMatchers("/api/fiduciaries").permitAll()
                         .requestMatchers("/api/purposes/**").permitAll()
+                        .requestMatchers("/api/complaints/**").permitAll()
+                        .requestMatchers("/api/fiduciary/stats").permitAll()
                         .anyRequest().authenticated()
                 )
 

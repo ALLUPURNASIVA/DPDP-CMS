@@ -5,7 +5,9 @@ export default function Profile() {
 
   const { user } = useAuth0();
   const [name, setName] = useState(
-  user?.name || ""
+  localStorage.getItem("userName") ||
+  user?.name ||
+  ""
 );
 const [saved, setSaved] = useState(false);
 const saveProfile = () => {

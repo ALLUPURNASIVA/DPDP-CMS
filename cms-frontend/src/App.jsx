@@ -61,8 +61,8 @@ export default function App() {
             className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold cursor-pointer"
           >
             {(localStorage.getItem("userName") || user?.name)
-              ?.charAt(0)
-              ?.toUpperCase() || "U"}
+  ?.charAt(0)
+  ?.toUpperCase() || "U"}
           </div>
 
           {open && (
@@ -70,12 +70,12 @@ export default function App() {
               <div className="p-6 text-center border-b">
                 <div className="w-16 h-16 mx-auto rounded-full bg-blue-600 text-white flex items-center justify-center text-2xl font-bold">
                   {(localStorage.getItem("userName") || user?.name)
-                    ?.charAt(0)
-                    ?.toUpperCase() || "U"}
+  ?.charAt(0)
+  ?.toUpperCase() || "U"}
                 </div>
 
                 <h3 className="mt-3 text-lg font-semibold">
-                  {localStorage.getItem("userName") || user?.name}
+                  {(localStorage.getItem("userName") || user?.name) || "User"}
                 </h3>
 
                 <p className="text-sm text-gray-500">{user?.email}</p>

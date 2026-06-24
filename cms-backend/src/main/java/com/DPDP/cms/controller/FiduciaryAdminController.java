@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import com.DPDP.cms.dto.CompanyStatsResponse;
+import com.DPDP.cms.repository.ComplaintRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -24,7 +26,7 @@ public class FiduciaryAdminController {
     private final UserRepository userRepo;
     private final PurposeRepository purposeRepo;
     private final ConsentArtifactRepository consentRepo;
-
+    private final ComplaintRepository complaintRepo;
     /**
      * SECURITY GATEWAY: Extracts the Auth0 ID, finds the user in the DB,
      * and guarantees they are a Fiduciary Admin before returning their Tenant ID.
@@ -75,6 +77,36 @@ public class FiduciaryAdminController {
         List<ConsentArtifact> activeConsents = consentRepo.findByTenantIdAndStatus(tenantId, ConsentArtifact.ConsentStatus.ACTIVE);
         return ResponseEntity.ok(activeConsents);
     }
+    @GetMapping("/stats")
+public ResponseEntity<CompanyStatsResponse> getCompanyStats() {
+
+    String tenantId = getAuthenticatedTenantId();
+
+    long activeConsents =
+            consentRepo.countByTenantIdAndStatus(
+                    tenantId,
+                    ConsentArtifact.ConsentStatus.ACTIVE
+            );
+
+    long complaintsRaised =
+            complaintRepo.countByTenantId(
+                    tenantId
+            );
+
+    long openComplaints =
+            complaintRepo.countByTenantIdAndStatus(
+                    tenantId,
+                    "OPEN"
+            );
+
+    return ResponseEntity.ok(
+            new CompanyStatsResponse(
+                    activeConsents,
+                    complaintsRaised,
+                    openComplaints
+            )
+    );
+}
 
     // =====================================================
     // Exception Handler for Security Bounces
