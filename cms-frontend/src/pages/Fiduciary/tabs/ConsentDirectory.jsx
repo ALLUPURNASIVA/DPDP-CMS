@@ -86,17 +86,20 @@ export default function ConsentDirectory() {
         />
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left whitespace-nowrap">
-          <thead className="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider font-bold">
+      {/* Added max-h-[600px] and overflow-y-auto for vertical scrolling */}
+      <div className="overflow-x-auto overflow-y-auto max-h-[600px] relative rounded-b-xl">
+        <table className="w-full text-left whitespace-nowrap border-collapse">
+          
+          {/* Added sticky, top-0, z-10, and shadow to keep headers fixed */}
+          <thead className="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider font-bold sticky top-0 z-10 shadow-sm">
             <tr>
-              <th className="px-6 py-4 rounded-tl-lg">Audit Receipt</th>
-              <th className="px-6 py-4">User Identity</th>
-              <th className="px-6 py-4">Processing Purpose</th>
-              <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Granted On</th>
-              <th className="px-6 py-4">Valid Until</th>
-              <th className="px-6 py-4 text-right rounded-tr-lg">Actions</th>
+              <th className="px-6 py-4 rounded-tl-lg bg-gray-50">Audit Receipt</th>
+              <th className="px-6 py-4 bg-gray-50">User Identity</th>
+              <th className="px-6 py-4 bg-gray-50">Processing Purpose</th>
+              <th className="px-6 py-4 bg-gray-50">Status</th>
+              <th className="px-6 py-4 bg-gray-50">Granted On</th>
+              <th className="px-6 py-4 bg-gray-50">Valid Until</th>
+              <th className="px-6 py-4 text-right rounded-tr-lg bg-gray-50">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-sm">

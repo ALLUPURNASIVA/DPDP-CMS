@@ -1,59 +1,45 @@
 package com.DPDP.cms.controller;
 
-import com.DPDP.cms.service.DataErasureService;
+import com.DPDP.cms.entity.User;
+import com.DPDP.cms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import com.DPDP.cms.dto.UserCompanyStatsResponse;
-import com.DPDP.cms.entity.ConsentArtifact;
-import com.DPDP.cms.repository.ComplaintRepository;
-import com.DPDP.cms.repository.ConsentArtifactRepository;
+
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
-    private final DataErasureService dataErasureService;
-    private final ComplaintRepository complaintRepository;
-    private final ConsentArtifactRepository consentArtifactRepository;
+    private final UserRepository userRepo;
 
-    @DeleteMapping("/forget-me")
-    public ResponseEntity<Void> rightToBeForgotten(
-            @RequestHeader("X-User-Id") String userId,
-            @RequestHeader(value = "X-User-Email", required = false) String userEmail
-    ) {
-        dataErasureService.executeRightToBeForgotten(userId, userEmail);
-        return ResponseEntity.noContent().build();
+    @PostMapping("/sync")
+    public ResponseEntity<?> syncUserProfile(@RequestBody Map<String, String> payload) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
+            String auth0Id = jwt.getClaimAsString("sub");
+            String email = payload.get("email"); // We get the email from the frontend payload
+
+            // If the user doesn't exist, create a blank baseline profile
+            if (!userRepo.existsById(auth0Id)) {
+                User newUser = new User();
+                newUser.setId(auth0Id);
+                newUser.setEmail(email);
+                newUser.setRole("GENERAL_USER");
+                // tenantId remains null until a Platform Admin assigns it
+
+                userRepo.save(newUser);
+                return ResponseEntity.ok(Map.of("message", "New user provisioned."));
+            }
+
+            return ResponseEntity.ok(Map.of("message", "User already exists."));
+        }
+
+        return ResponseEntity.status(401).body("Invalid token.");
     }
-    @GetMapping("/company-stats/{tenantId}")
-public ResponseEntity<UserCompanyStatsResponse> getCompanyStats(
-        @PathVariable String tenantId
-) {
-
-    long activeConsents =
-            consentArtifactRepository.countByTenantIdAndStatus(
-                    tenantId,
-                    ConsentArtifact.ConsentStatus.ACTIVE
-            );
-
-    long complaintsRaised =
-            complaintRepository.countByTenantId(
-                    tenantId
-            );
-
-    long openComplaints =
-            complaintRepository.countByTenantIdAndStatus(
-                    tenantId,
-                    "OPEN"
-            );
-
-    return ResponseEntity.ok(
-            new UserCompanyStatsResponse(
-                    activeConsents,
-                    complaintsRaised,
-                    openComplaints
-            )
-    );
-}
 }

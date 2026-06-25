@@ -130,6 +130,8 @@ public class FiduciaryAdminController {
     public ResponseEntity<List<java.util.Map<String, Object>>> getCompanyConsents() {
         String tenantId = getAuthenticatedTenantId();
         List<ConsentArtifact> consents = consentRepo.findByTenantId(tenantId);
+        // NEW: Sort descending by date so the newest records appear at the top of the directory
+        consents.sort((a, b) -> b.getGrantedAt().compareTo(a.getGrantedAt()));
 
         List<java.util.Map<String, Object>> response = consents.stream().map(c -> {
             java.util.Map<String, Object> map = new java.util.HashMap<>();
@@ -174,6 +176,8 @@ public class FiduciaryAdminController {
                 .toList();
 
         List<ConsentArtifact> userConsents = consentRepo.findByUserIdAndTenantId(userId, tenantId);
+        // NEW: Sort descending by date so .findFirst() always grabs the most recent record
+        userConsents.sort((a, b) -> b.getGrantedAt().compareTo(a.getGrantedAt()));
         List<java.util.Map<String, Object>> matrix = new java.util.ArrayList<>();
 
         for (com.DPDP.cms.entity.Purpose purpose : activePurposes) {
