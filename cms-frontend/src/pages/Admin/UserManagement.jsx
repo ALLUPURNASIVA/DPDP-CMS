@@ -10,6 +10,38 @@ import Icons from './Icons';
 export default function UserManagement({ users = [], onViewLogs }) {
   const [selectedUser, setSelectedUser] = useState(null);
 
+  // --- ROLE BADGE HELPER ---
+  const renderRoleBadge = (user) => {
+    // 1. Hardcode the Super Admin check based on our security rule
+    if (user.email === 'consentmanagement88@gmail.com') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20">
+          Platform Admin
+        </span>
+      );
+    }
+
+    // 2. Check for Fiduciary Representative
+    // (Handles both string 'role' and array 'roles' depending on how your Spring Boot backend formats it)
+    const isFiduciary = user.role === 'FIDUCIARY_REPRESENTATIVE' || 
+                       (user.roles && user.roles.includes('FIDUCIARY_REPRESENTATIVE'));
+
+    if (isFiduciary) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20">
+          Fiduciary Representative
+        </span>
+      );
+    }
+
+    // 3. Default Fallback
+    return (
+      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-600/20">
+        General User
+      </span>
+    );
+  };
+
   return (
     <div className="flex flex-col">
       {/* Header */}
@@ -24,6 +56,7 @@ export default function UserManagement({ users = [], onViewLogs }) {
           <thead className="bg-gray-50/50 border-b border-gray-200 sticky top-0 z-10">
             <tr>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">Data Principal (Email)</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">Role</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">Status</th>
               <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">Controls</th>
             </tr>
@@ -31,7 +64,7 @@ export default function UserManagement({ users = [], onViewLogs }) {
           <tbody className="divide-y divide-gray-100 bg-white">
             {users.length === 0 ? (
               <tr>
-                <td colSpan="3" className="text-center py-12 text-sm text-gray-500 font-medium">
+                <td colSpan="4" className="text-center py-12 text-sm text-gray-500 font-medium">
                   No active principals found.
                 </td>
               </tr>
@@ -41,6 +74,12 @@ export default function UserManagement({ users = [], onViewLogs }) {
                   <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
                     {user.email || user.id || user}
                   </td>
+                  
+                  {/* NEW ROLE COLUMN */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {renderRoleBadge(user)}
+                  </td>
+
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
@@ -85,6 +124,14 @@ export default function UserManagement({ users = [], onViewLogs }) {
 
             {/* Modal Body */}
             <div className="px-6 py-6 space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  System Role
+                </label>
+                <div>
+                  {renderRoleBadge(selectedUser)}
+                </div>
+              </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                   Auth0 System Identifier
