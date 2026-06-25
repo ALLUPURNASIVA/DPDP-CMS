@@ -2,12 +2,14 @@ package com.DPDP.cms.controller;
 
 import com.DPDP.cms.entity.User;
 import com.DPDP.cms.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -17,29 +19,107 @@ public class UserController {
 
     private final UserRepository userRepo;
 
+    // -------------------------------------------------------
+    // Called by App.jsx on every login
+    // Creates user in DB if new, always returns their role
+    // -------------------------------------------------------
     @PostMapping("/sync")
-    public ResponseEntity<?> syncUserProfile(@RequestBody Map<String, String> payload) {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
+    public ResponseEntity<?> syncUser(
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
-            String auth0Id = jwt.getClaimAsString("sub");
-            String email = payload.get("email"); // We get the email from the frontend payload
+        String userId = jwt.getClaimAsString("sub");
+        String email = body.get("email");
 
-            // If the user doesn't exist, create a blank baseline profile
-            if (!userRepo.existsById(auth0Id)) {
-                User newUser = new User();
-                newUser.setId(auth0Id);
-                newUser.setEmail(email);
-                newUser.setRole("GENERAL_USER");
-                // tenantId remains null until a Platform Admin assigns it
-
-                userRepo.save(newUser);
-                return ResponseEntity.ok(Map.of("message", "New user provisioned."));
-            }
-
-            return ResponseEntity.ok(Map.of("message", "User already exists."));
+        // Create user if first time logging in
+        if (!userRepo.existsById(userId)) {
+            User newUser = User.builder()
+                    .id(userId)
+                    .email(email)
+                    .role("GENERAL_USER")
+                    .build();
+            userRepo.save(newUser);
         }
 
-        return ResponseEntity.status(401).body("Invalid token.");
+        // Always return their current role so frontend can redirect
+        User user = userRepo.findById(userId).orElseThrow();
+        return ResponseEntity.ok(Map.of(
+                "role", user.getRole(),
+                "tenantId", user.getTenantId() != null ? user.getTenantId() : ""
+        ));
+    }
+
+    // -------------------------------------------------------
+    // Called by ProtectedRoute to verify role on page load
+    // -------------------------------------------------------
+    @GetMapping("/me")
+    public ResponseEntity<?> getMe(@AuthenticationPrincipal Jwt jwt) {
+        String userId = jwt.getClaimAsString("sub");
+        User user = userRepo.findById(userId).orElseThrow();
+        return ResponseEntity.ok(Map.of(
+                "role", user.getRole(),
+                "tenantId", user.getTenantId() != null ? user.getTenantId() : ""
+        ));
+    }
+
+    // -------------------------------------------------------
+    // ADMIN ONLY — Assign Fiduciary Admin role to a user
+    // Called from Admin Panel > Company Management
+    // -------------------------------------------------------
+    @Transactional
+    @PutMapping("/admin/assign-fiduciary")
+    public ResponseEntity<?> assignFiduciaryAdmin(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String tenantId = body.get("tenantId");
+
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found. They must log in at least once first."));
+
+        user.setRole("FIDUCIARY_ADMIN");
+        user.setTenantId(tenantId);
+        userRepo.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "User promoted to Fiduciary Admin for " + tenantId));
+    }
+
+    // -------------------------------------------------------
+    // FIDUCIARY ADMIN ONLY — Assign Worker role to a user
+    // Called from Fiduciary Dashboard > Worker Access tab
+    // Fiduciary Admin can only assign workers to THEIR tenant
+    // -------------------------------------------------------
+    @Transactional
+    @PutMapping("/fiduciary/assign-worker")
+    public ResponseEntity<?> assignWorker(
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        // Get the fiduciary admin's own tenantId from DB
+        String requesterId = jwt.getClaimAsString("sub");
+        User requester = userRepo.findById(requesterId).orElseThrow();
+
+        // Security check — only FIDUCIARY_ADMIN can call this
+        if (!"FIDUCIARY_ADMIN".equals(requester.getRole())) {
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        }
+
+        String email = body.get("email");
+
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found. They must log in at least once first."));
+
+        // Worker gets same tenantId as the fiduciary admin assigning them
+        user.setRole("FIDUCIARY_WORKER");
+        user.setTenantId(requester.getTenantId());
+        userRepo.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "User assigned as Worker for " + requester.getTenantId()));
+    }
+
+    // -------------------------------------------------------
+    // ADMIN ONLY — Get all users (for user management UI)
+    // -------------------------------------------------------
+    @GetMapping("/admin/all")
+    public ResponseEntity<List<User>> getAllUsers() {
+        return ResponseEntity.ok(userRepo.findAll());
     }
 }

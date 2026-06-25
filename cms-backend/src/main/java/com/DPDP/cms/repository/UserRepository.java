@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, String> {
-    Optional<User> findByEmail(String email);
 
-    long countByTenantId(String tenantId);
+    // Needed for role assignment — admin/fiduciary searches by email
+    Optional<User> findByEmail(String email);
 }

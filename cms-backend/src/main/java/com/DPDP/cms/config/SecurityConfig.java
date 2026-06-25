@@ -2,56 +2,54 @@ package com.DPDP.cms.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
+
+    @Autowired
+    private CorsConfigurationSource corsConfigurationSource;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
         http
-                .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/consent/validate").permitAll()
-                        .requestMatchers("/api/admin/**").permitAll()
-                        .requestMatchers("/api/fiduciaries").permitAll()
-                        .requestMatchers("/api/purposes/**").permitAll()
-                        .requestMatchers("/api/complaints/**").permitAll()
-                        .requestMatchers("/api/fiduciary/stats").permitAll()
+                .cors(cors -> cors.configurationSource(corsConfigurationSource)) // use CorsConfig bean
+                .authorizeHttpRequests(auth -> auth
+
+                        // Public — login sync (must be open, JWT still validated inside method)
+                        .requestMatchers(HttpMethod.POST, "/users/sync").authenticated()
+
+                        // Any logged-in user can get their own profile
+                        .requestMatchers(HttpMethod.GET, "/users/me").authenticated()
+
+                        // Admin-only endpoints
+                        .requestMatchers("/users/admin/**").authenticated()
+                        .requestMatchers("/api/admin/**").authenticated()
+
+                        // Fiduciary-only endpoints
+                        .requestMatchers("/users/fiduciary/**").authenticated()
+                        .requestMatchers("/api/fiduciary/**").authenticated()
+
+                        // Worker endpoints
+                        .requestMatchers("/api/worker/**").authenticated()
+
+                        // Consent endpoints — any authenticated user
+                        .requestMatchers("/api/consent/**").authenticated()
+
+                        // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
-
-                // 4. Configure OAuth2 Resource Server for Auth0 JWTs
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(Customizer.withDefaults())
+                        .jwt(jwt -> {}) // validates Auth0 JWT automatically
                 );
 
         return http.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-User-Email", "X-User-Id", "X-Worker-Email"));
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
-        source.registerCorsConfiguration("/**", configuration);
-
-        return source;
     }
 }
