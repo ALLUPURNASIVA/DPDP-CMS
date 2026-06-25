@@ -14,8 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import com.DPDP.cms.dto.CompanyStatsResponse;
-import com.DPDP.cms.repository.ComplaintRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -51,11 +49,7 @@ public class FiduciaryAdminController {
     // =====================================================
     @GetMapping("/verify")
     public ResponseEntity<?> verifyAccess() {
-        // If the user is a GENERAL_USER, this next line will throw the SecurityException
-        // and return a 403 Forbidden before it ever reaches the return statement.
         String tenantId = getAuthenticatedTenantId();
-
-        // If they survive the check, they are authorized!
         return ResponseEntity.ok(Map.of("status", "Authorized", "tenantId", tenantId));
     }
 
@@ -96,17 +90,13 @@ public class FiduciaryAdminController {
         Purpose existingPurpose = purposeRepo.findById(purposeId)
                 .orElseThrow(() -> new RuntimeException("Purpose not found"));
 
-        // SECURITY CHECK: Verify ownership before editing
         if (!existingPurpose.getTenantId().equals(tenantId)) {
             throw new SecurityException("Access Denied: You do not own this purpose.");
         }
 
-        // Apply the updates (Fixed Lombok naming conventions)
         existingPurpose.setName(updatedData.getName());
         existingPurpose.setDescription(updatedData.getDescription());
         existingPurpose.setRetentionPeriodMonths(updatedData.getRetentionPeriodMonths());
-
-        // If your entity uses "mandatory" instead of "isMandatory", use this:
         existingPurpose.setMandatory(updatedData.getMandatory());
 
         Purpose savedPurpose = purposeRepo.save(existingPurpose);
@@ -123,12 +113,10 @@ public class FiduciaryAdminController {
         Purpose existingPurpose = purposeRepo.findById(purposeId)
                 .orElseThrow(() -> new RuntimeException("Purpose not found"));
 
-        // SECURITY CHECK: Verify ownership before retiring
         if (!existingPurpose.getTenantId().equals(tenantId)) {
             throw new SecurityException("Access Denied: You do not own this purpose.");
         }
 
-        // Soft delete
         existingPurpose.setIsActive(false);
         purposeRepo.save(existingPurpose);
 
@@ -143,10 +131,8 @@ public class FiduciaryAdminController {
         String tenantId = getAuthenticatedTenantId();
         List<ConsentArtifact> consents = consentRepo.findByTenantId(tenantId);
 
-        // Map the database entities to a clean JSON structure for the frontend
         List<java.util.Map<String, Object>> response = consents.stream().map(c -> {
             java.util.Map<String, Object> map = new java.util.HashMap<>();
-            // Pass the full UUID as a string[cite: 1]
             map.put("id", c.getId().toString());
 
             String email = userRepo.findById(c.getUserId())
@@ -155,9 +141,8 @@ public class FiduciaryAdminController {
 
             map.put("userEmail", email);
             map.put("purposeName", c.getPurpose() != null ? c.getPurpose().getName() : "Unknown");
-            map.put("status", c.getStatus().name());
+            map.put("status", c.getStatus() != null ? c.getStatus().name() : "UNKNOWN");
             map.put("grantedAt", c.getGrantedAt());
-            // Add the expiration date[cite: 1]
             map.put("expiresAt", c.getExpiresAt());
 
             return map;
@@ -174,7 +159,6 @@ public class FiduciaryAdminController {
         java.util.Map<String, Object> response = new java.util.HashMap<>();
         response.put("email", email);
 
-        // 1. Locate User
         java.util.Optional<com.DPDP.cms.entity.User> userOpt = userRepo.findByEmail(email);
         if (userOpt.isEmpty()) {
             response.put("found", false);
@@ -185,15 +169,11 @@ public class FiduciaryAdminController {
         response.put("found", true);
         response.put("userId", userId);
 
-        // 2. Fetch all Active Purposes for the Company
         List<com.DPDP.cms.entity.Purpose> activePurposes = purposeRepo.findByTenantId(tenantId).stream()
-                .filter(p -> p.getIsActive() == null || p.getIsActive()) // Handle nulls safely
+                .filter(p -> p.getIsActive() == null || p.getIsActive())
                 .toList();
 
-        // 3. Fetch all Consents for this User
         List<ConsentArtifact> userConsents = consentRepo.findByUserIdAndTenantId(userId, tenantId);
-
-        // 4. Merge them into a single Matrix
         List<java.util.Map<String, Object>> matrix = new java.util.ArrayList<>();
 
         for (com.DPDP.cms.entity.Purpose purpose : activePurposes) {
@@ -202,14 +182,13 @@ public class FiduciaryAdminController {
             map.put("description", purpose.getDescription());
             map.put("isMandatory", purpose.getMandatory());
 
-            // Check if the user has an artifact for this specific purpose
             java.util.Optional<ConsentArtifact> artifact = userConsents.stream()
                     .filter(c -> c.getPurpose() != null && c.getPurpose().getId().equals(purpose.getId()))
                     .findFirst();
 
             if (artifact.isPresent()) {
                 ConsentArtifact c = artifact.get();
-                map.put("status", c.getStatus().name());
+                map.put("status", c.getStatus() != null ? c.getStatus().name() : "UNKNOWN");
                 map.put("grantedAt", c.getGrantedAt());
                 map.put("expiresAt", c.getExpiresAt());
                 map.put("receiptId", c.getId().toString());
@@ -241,11 +220,11 @@ public class FiduciaryAdminController {
             return ResponseEntity.badRequest().body("Worker already authorized.");
         }
 
-        FiduciaryWorker worker = FiduciaryWorker.builder()
-                .tenantId(tenantId)
-                .email(email)
-                .addedAt(java.time.LocalDateTime.now())
-                .build();
+        // Standard instantiation to avoid reliance on @Builder definitions
+        FiduciaryWorker worker = new FiduciaryWorker();
+        worker.setTenantId(tenantId);
+        worker.setEmail(email);
+        worker.setAddedAt(java.time.LocalDateTime.now());
 
         return ResponseEntity.ok(workerRepo.save(worker));
     }
@@ -262,22 +241,18 @@ public class FiduciaryAdminController {
     @GetMapping("/consent/export")
     public ResponseEntity<byte[]> exportConsentData() {
         String tenantId = getAuthenticatedTenantId();
-
-        // 1. Fetch data for the specific tenant
         List<ConsentArtifact> data = consentRepo.findByTenantId(tenantId);
 
-        // 2. Build CSV string - Added 'ExpiresAt' to the header
         StringBuilder csv = new StringBuilder("ID,UserEmail,Status,Purpose,GrantedAt,ExpiresAt\n");
 
         for (ConsentArtifact c : data) {
-            // Resolve email from ID
             String email = userRepo.findById(c.getUserId())
                     .map(User::getEmail)
                     .orElse(c.getUserId());
 
             csv.append(c.getId()).append(",")
                     .append(email).append(",")
-                    .append(c.getStatus()).append(",")
+                    .append(c.getStatus() != null ? c.getStatus().name() : "UNKNOWN").append(",")
                     .append(c.getPurpose() != null ? c.getPurpose().getName() : "None").append(",")
                     .append(c.getGrantedAt() != null ? c.getGrantedAt() : "N/A").append(",")
                     .append(c.getExpiresAt() != null ? c.getExpiresAt() : "N/A").append("\n");
@@ -285,7 +260,6 @@ public class FiduciaryAdminController {
 
         byte[] content = csv.toString().getBytes();
 
-        // 3. Return as a CSV file download
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=audit_report.csv")
                 .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
@@ -297,24 +271,18 @@ public class FiduciaryAdminController {
     // =====================================================
     @GetMapping("/analytics")
     public ResponseEntity<java.util.Map<String, Object>> getAnalytics() {
-        // 1. Identify the logged-in admin's company
         String tenantId = getAuthenticatedTenantId();
-
         java.util.Map<String, Object> metrics = new java.util.HashMap<>();
 
-        // 2. Fetch all raw data for this tenant
         List<ConsentArtifact> allConsents = consentRepo.findByTenantId(tenantId);
-        // Fetch only ACTIVE purposes for the breakdown
         List<com.DPDP.cms.entity.Purpose> allPurposes = purposeRepo.findByTenantId(tenantId).stream()
                 .filter(p -> p.getIsActive() == null || p.getIsActive())
                 .toList();
 
-        // 3. Calculate High-Level KPIs
         long totalConsents = allConsents.size();
         long activeConsents = allConsents.stream().filter(c -> c.getStatus() == ConsentArtifact.ConsentStatus.ACTIVE).count();
         long withdrawnConsents = allConsents.stream().filter(c -> c.getStatus() == ConsentArtifact.ConsentStatus.WITHDRAWN).count();
 
-        // Calculate health (Avoid divide by zero)
         int complianceHealth = totalConsents == 0 ? 100 : (int) ((activeConsents * 100.0f) / totalConsents);
 
         metrics.put("totalConsents", totalConsents);
@@ -322,7 +290,6 @@ public class FiduciaryAdminController {
         metrics.put("withdrawnConsents", withdrawnConsents);
         metrics.put("complianceHealth", complianceHealth);
 
-        // 4. Calculate "Consent by Purpose" Breakdown
         List<java.util.Map<String, Object>> purposeBreakdown = new java.util.ArrayList<>();
 
         for (com.DPDP.cms.entity.Purpose p : allPurposes) {
@@ -336,15 +303,12 @@ public class FiduciaryAdminController {
             purposeBreakdown.add(pStats);
         }
 
-        // Sort breakdown from highest to lowest so the UI looks clean
         purposeBreakdown.sort((a, b) -> Long.compare((Long) b.get("activeCount"), (Long) a.get("activeCount")));
         metrics.put("purposeBreakdown", purposeBreakdown);
 
-        // Fetch count of workers for this tenant
         long workerCount = workerRepo.countByTenantId(tenantId);
         metrics.put("totalWorkers", workerCount);
 
-        // Calculate unique users directly from the consent ledger
         long totalUsers = allConsents.stream()
                 .map(ConsentArtifact::getUserId)
                 .distinct()

@@ -13,12 +13,18 @@ import AdminPanel from './pages/Admin/AdminPanel';
 
 // New Pages
 import ExploreCompanies from "./pages/GeneralUser/ExploreCompanies";
-//import MyCompanies from "./pages/GeneralUser/MyCompanies";
 import UserDashboard from "./pages/GeneralUser/UserDashboard";
 import ActiveConsents from "./pages/GeneralUser/ActiveConsents";
 import ActivityHistory from "./pages/GeneralUser/ActivityHistory";
 import Profile from "./pages/GeneralUser/Profile";
 import MyCompanies from "./pages/GeneralUser/MyCompanies";
+
+// Corrected Fiduciary Import based on your file structure
+import FiduciaryDashboard from "./pages/Fiduciary/FiduciaryDashboard";
+
+// NOTE: Commented out because WorkerDashboard.jsx does not exist yet in your pages folder
+import WorkerDashboard from "./pages/Worker/WorkerDashboard";
+
 export default function App() {
   const { isAuthenticated, loginWithRedirect, logout, user } = useAuth0();
   const navigate = useNavigate();
@@ -42,7 +48,6 @@ export default function App() {
       </div>
     );
   }
-     
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -125,51 +130,45 @@ export default function App() {
         <Routes>
           <Route path="/" element={<RoleSelection navigate={navigate} />} />
 
-          {/* Existing Backend-Compatible Routes */}
+          {/* User Core Pages */}
           <Route path="/user" element={<UserDashboard />} />
+          <Route path="/user/my-companies" element={<MyCompanies />} />
+          <Route path="/user/explore" element={<ExploreCompanies />} />
           <Route path="/user/consent/:tenantId" element={<ConsentManager />} />
+          <Route path="/user/active-consents" element={<ActiveConsents />} />
+          <Route path="/user/activity" element={<ActivityHistory />} />
+          <Route path="/user/profile" element={<Profile />} />
           <Route path="/user/settings" element={<AccountSettings />} /> 
           
-          {/* Fiduciary Route - UPDATED TO NEW DASHBOARD */}
+          {/* Fiduciary Route */}
           <Route path="/fiduciary/dashboard" element={<FiduciaryDashboard />} />
-          {/* Worker Route */}
+          
+          {/* Worker Route - Disabled until page file is created to prevent compilation failure */}
           <Route path="/worker/dashboard" element={<WorkerDashboard />} />
           
           {/* Admin Route */}
           <Route path="/admin/panel" element={<AdminPanel />} />
-
-          {/* New UI Routes */}
-          <Route path="/user" element={<UserDashboard />} />
-              <Route path="/user/my-companies" element={<MyCompanies />} />
-              <Route path="/user/explore" element={<ExploreCompanies />} />
-              <Route path="/user/consent/:tenantId" element={<ConsentManager />} />
-              <Route path="/user/active-consents" element={<ActiveConsents />} />
-              <Route path="/user/activity" element={<ActivityHistory />} />
-              <Route path="/user/profile" element={<Profile />} />
-              <Route path="/user/settings" element={<AccountSettings />} />
         </Routes>
       </div>
     </div>
   );
 }
 
-// The 3-Choice UI Component
+// The Selection UI Component
 const RoleSelection = ({ navigate }) => {
   const { getAccessTokenSilently } = useAuth0();
   const [isVerifying, setIsVerifying] = useState(false);
 
-  // The Gatekeeper Function
   const handleFiduciaryClick = async () => {
     setIsVerifying(true);
     const toastId = toast.loading('Verifying secure access...');
 
     try {
       const api = await getSecureClient(getAccessTokenSilently);
-      // Ping the backend. If they aren't an admin, this throws an error.
       await api.get('/fiduciary/verify');
       
       toast.success('Access Granted', { id: toastId });
-      navigate('/fiduciary/dashboard'); // Let them in
+      navigate('/fiduciary/dashboard');
     } catch (error) {
       if (error.response && error.response.status === 403) {
         toast.error('Access Denied: You do not have Fiduciary Admin privileges.', { id: toastId });
@@ -186,12 +185,15 @@ const RoleSelection = ({ navigate }) => {
       <h2 className="text-2xl font-bold mb-8 text-center">Select Your Portal</h2>
       <div className="grid md:grid-cols-3 gap-6">
         
-        <div className="bg-white p-8 rounded-xl shadow border hover:shadow-lg transition cursor-pointer" onClick={() => navigate('/user/companies')}>
+        {/* FIX: Clicking this card now navigates directly to /user dashboard */}
+        <div 
+          className="bg-white p-8 rounded-xl shadow border hover:shadow-lg transition cursor-pointer" 
+          onClick={() => navigate('/user')}
+        >
           <h3 className="text-xl font-bold text-blue-600 mb-2">General User</h3>
           <p className="text-sm text-gray-600">View companies, grant consents, and manage your data privacy.</p>
         </div>
 
-        {/* UPDATED: Now uses the Gatekeeper function */}
         <div 
           className={`bg-white p-8 rounded-xl shadow border hover:shadow-lg transition cursor-pointer ${isVerifying ? 'opacity-50 pointer-events-none' : ''}`} 
           onClick={handleFiduciaryClick}
@@ -201,17 +203,18 @@ const RoleSelection = ({ navigate }) => {
         </div>
 
         <div
-        className="bg-white p-8 rounded-xl shadow border hover:shadow-lg transition cursor-pointer"
-        onClick={() => navigate('/admin/panel')}
-      >
+          className="bg-white p-8 rounded-xl shadow border hover:shadow-lg transition cursor-pointer"
+          onClick={() => navigate('/admin/panel')}
+        >
           <h3 className="text-xl font-bold text-purple-600 mb-2">
-          Platform Admin
-        </h3>
+            Platform Admin
+          </h3>
           <p className="text-sm text-gray-600">
-          Manage purposes, view audit logs, and configure the system.
-        </p>
+            Manage purposes, view audit logs, and configure the system.
+          </p>
         </div>
-        {/* Fiduciary Worker Portal Card */}
+        
+        {/* Placeholder navigation item for future worker modules */}
         <div 
           onClick={() => navigate('/worker/dashboard')}
           className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 cursor-pointer transition-all flex flex-col h-full"

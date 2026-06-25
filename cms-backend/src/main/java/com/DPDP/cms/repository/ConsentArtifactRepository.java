@@ -59,5 +59,6 @@ public interface ConsentArtifactRepository extends JpaRepository<ConsentArtifact
     // Fetch all consent records for a specific user within your company
     List<ConsentArtifact> findByUserIdAndTenantId(String userId, String tenantId);
 
-    Optional<ConsentArtifact> findByUserIdAndTenantIdAndPurposeId(String userId, String tenantId, Long purposeId);
+    // Changed to List, and ordered by Date descending so the newest is always first
+    List<ConsentArtifact> findByUserIdAndTenantIdAndPurposeIdOrderByGrantedAtDesc(String userId, String tenantId, Long purposeId);
 }

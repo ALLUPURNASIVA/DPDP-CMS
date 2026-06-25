@@ -12,6 +12,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/worker")
 public class WorkerController {
@@ -74,16 +76,17 @@ public class WorkerController {
         }
 
         String userId = userOpt.get().getId();
-        java.util.Optional<ConsentArtifact> consentOpt =
-                consentRepo.findByUserIdAndTenantIdAndPurposeId(userId, tenantId, purposeId);
+        // 3. Check Ledger for Valid Consent (Fetching the most recent record first)
+        List<ConsentArtifact> history = consentRepo.findByUserIdAndTenantIdAndPurposeIdOrderByGrantedAtDesc(userId, tenantId, purposeId);
 
-        if (consentOpt.isEmpty()) {
+        if (history.isEmpty() || history.get(0).getStatus() != ConsentArtifact.ConsentStatus.ACTIVE) {
             response.put("isCompliant", false);
-            response.put("reason", "No consent record found for this specific purpose.");
+            response.put("reason", "No active consent found for this purpose.");
             return ResponseEntity.ok(response);
         }
 
-        ConsentArtifact consent = consentOpt.get();
+        // Grab the most recent record
+        ConsentArtifact consent = history.get(0);
 
         if (consent.getStatus() != ConsentArtifact.ConsentStatus.ACTIVE) {
             response.put("isCompliant", false);
