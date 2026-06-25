@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { useAuth0 } from "@auth0/auth0-react";
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
@@ -26,9 +26,30 @@ import FiduciaryDashboard from "./pages/Fiduciary/FiduciaryDashboard";
 import WorkerDashboard from "./pages/Worker/WorkerDashboard";
 
 export default function App() {
-  const { isAuthenticated, loginWithRedirect, logout, user } = useAuth0();
+  const { isAuthenticated, loginWithRedirect, logout, user, getAccessTokenSilently } = useAuth0();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  // ==========================================
+  // NEW: GLOBAL USER SYNC (Just-In-Time Provisioning)
+  // ==========================================
+  useEffect(() => {
+    const syncUserWithDatabase = async () => {
+      // Only fire if they are actually logged in and have an email
+      if (isAuthenticated && user?.email) {
+        try {
+          const api = await getSecureClient(getAccessTokenSilently);
+          // Ping the backend. If they are new, it creates the database row.
+          await api.post('/users/sync', { email: user.email });
+        } catch (error) {
+          console.error("Failed to sync user profile with database:", error);
+        }
+      }
+    };
+
+    syncUserWithDatabase();
+  }, [isAuthenticated, user, getAccessTokenSilently]);
+  // ==========================================
 
   if (!isAuthenticated) {
     return (
