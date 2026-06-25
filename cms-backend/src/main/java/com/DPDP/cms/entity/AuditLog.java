@@ -30,5 +30,15 @@ public class AuditLog {
     @Column(name = "cryptographic_hash")
     private String cryptographicHash;
 
+    // --- NEW COLUMNS FOR THE DASHBOARD ---
+    @Column(name = "purpose_id")
+    private Long purposeId;
+
+    @Column(name = "consent_status")
+    private String consentStatus;
+
+    @Column(name = "expiry_date")
+    private LocalDateTime expiryDate;
+
     public enum ActionType { GRANT, WITHDRAW, UPDATE, VALIDATE, EXPIRED }
 }

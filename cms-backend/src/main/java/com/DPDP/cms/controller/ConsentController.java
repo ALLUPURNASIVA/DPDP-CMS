@@ -1,6 +1,5 @@
 package com.DPDP.cms.controller;
 
-
 import com.DPDP.cms.dto.FiduciaryDto;
 import com.DPDP.cms.entity.*;
 import com.DPDP.cms.repository.*;
@@ -18,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.ArrayList;
 import com.DPDP.cms.dto.ActiveConsentDto;
+
 @RestController
 @RequestMapping("/api/consent")
 @RequiredArgsConstructor
@@ -30,6 +30,7 @@ public class ConsentController {
     private final UserRepository userRepo;
     private final NotificationLogRepository notificationRepo;
     private final TenantRepository tenantRepo;
+
     private String getAuth0UserId() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
@@ -44,8 +45,6 @@ public class ConsentController {
                     .id(userId)
                     .email(email)
                     .role("GENERAL_USER")
-                    // If your User entity doesn't have a builder, just use:
-                    // User newUser = new User(); newUser.setId(userId); newUser.setEmail(email);
                     .build();
             userRepo.save(newUser);
         }
@@ -79,23 +78,36 @@ public class ConsentController {
             // 2. Add the readable name to our list
             grantedPurposeNames.add(purpose.getName());
 
+            LocalDateTime expiry = LocalDateTime.now().plusMonths(purpose.getRetentionPeriodMonths());
+
             ConsentArtifact artifact = ConsentArtifact.builder()
                     .userId(userId)
                     .tenantId(tenantId)
                     .purpose(purpose)
                     .status(ConsentArtifact.ConsentStatus.ACTIVE)
                     .grantedAt(LocalDateTime.now())
-                    .expiresAt(LocalDateTime.now().plusMonths(purpose.getRetentionPeriodMonths()))
+                    .expiresAt(expiry)
                     .build();
             consentRepo.save(artifact);
+
+            // UPDATED: Move the audit log INSIDE the loop and pass the new arguments
+            // This ensures every granted purpose shows up as its own row in the Admin Dashboard
+            auditService.logAction(
+                    userId,
+                    tenantId,
+                    AuditLog.ActionType.GRANT,
+                    request.getRemoteAddr(),
+                    "Granted purpose: " + purpose.getName(),
+                    purpose.getId(),
+                    "ACTIVE",
+                    expiry
+            );
         });
 
         // 3. Create a beautiful, dynamic email message with bullet points
         String dynamicEmailBody = "You have successfully granted consent to " + tenantId + " for the following data purposes:\n\n"
                 + "- " + String.join("\n- ", grantedPurposeNames)
                 + "\n\nYou can review or withdraw these at any time by logging into your DPDP Portal.";
-
-        auditService.logAction(userId, tenantId, AuditLog.ActionType.GRANT, request.getRemoteAddr(), purposeIds.toString());
 
         // 4. Send the dynamic email!
         emailService.sendNotification(userEmail, "Consent Granted: " + tenantId, dynamicEmailBody);
@@ -119,6 +131,7 @@ public class ConsentController {
     public List<ConsentArtifact> getHistory() {
         return consentRepo.findByUserId(getAuth0UserId());
     }
+
     @GetMapping("/active-consents")
     public List<ActiveConsentDto> getActiveConsents() {
         return consentRepo.findByUserId(getAuth0UserId())
@@ -160,7 +173,17 @@ public class ConsentController {
                 + "- " + purposeName
                 + "\n\n" + tenantName + " has been legally notified to cease processing your data for this specific purpose. You can review your remaining active consents or re-grant this permission at any time by logging into your DPDP Portal.";
 
-        auditService.logAction(userId, tenantName, AuditLog.ActionType.WITHDRAW, request.getRemoteAddr(), artifactId.toString());
+        // UPDATED: Pass the new parameters to the Audit Service
+        auditService.logAction(
+                userId,
+                tenantName,
+                AuditLog.ActionType.WITHDRAW,
+                request.getRemoteAddr(),
+                artifactId.toString(),
+                artifact.getPurpose().getId(),
+                "WITHDRAWN",
+                artifact.getExpiresAt()
+        );
 
         // 3. Send the detailed email!
         emailService.sendNotification(userEmail, "Consent Withdrawn: " + tenantName, dynamicEmailBody);
@@ -181,7 +204,6 @@ public class ConsentController {
         return ResponseEntity.ok(Map.of("message", "Consent successfully withdrawn"));
     }
 
-    // Journey 2: Validate Consent (For Fiduciary External Systems)
     // Journey 2: Validate Consent (Bulletproof JSON parsing)
     @PostMapping("/validate")
     public ResponseEntity<?> validateConsent(@RequestBody Map<String, Object> payload, HttpServletRequest request) {
@@ -194,7 +216,17 @@ public class ConsentController {
             boolean isValid = consentRepo.existsByUserIdAndPurposeIdAndTenantIdAndStatus(
                     userId, purposeId, tenantId, ConsentArtifact.ConsentStatus.ACTIVE);
 
-            auditService.logAction(userId, tenantId, AuditLog.ActionType.VALIDATE, request.getRemoteAddr(), purposeId.toString());
+            // UPDATED: Pass the new parameters to the Audit Service
+            auditService.logAction(
+                    userId,
+                    tenantId,
+                    AuditLog.ActionType.VALIDATE,
+                    request.getRemoteAddr(),
+                    "Validation check",
+                    purposeId,
+                    isValid ? "ACTIVE" : "INVALID",
+                    null // Expiry date isn't immediately available without a deeper query during validation
+            );
 
             return ResponseEntity.ok(Map.of("valid", isValid));
 
@@ -203,6 +235,7 @@ public class ConsentController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid payload format"));
         }
     }
+
     @GetMapping("/fiduciaries")
     public List<FiduciaryDto> getPublicFiduciaries() {
 

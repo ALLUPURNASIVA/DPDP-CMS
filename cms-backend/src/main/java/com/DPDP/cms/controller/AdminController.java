@@ -236,13 +236,16 @@ public class AdminController {
     // --- JOURNEY 5: USER MANAGEMENT ---
     // Endpoint: /api/admin/users
     @GetMapping("/admin/users")
-    public ResponseEntity<List<String>> getUniqueUsers() {
-        // Extracts unique Auth0 Sub IDs from the Audit Logs to populate the Data Principal Directory
-        List<String> uniqueUsers = auditLogRepo.findAll().stream()
-                .map(AuditLog::getUserId)
-                .distinct()
+    public ResponseEntity<List<java.util.Map<String, String>>> getUniqueUsers() {
+        // Fetch all users from the User table to include their resolved emails
+        List<java.util.Map<String, String>> userList = userRepo.findAll().stream()
+                .map(user -> java.util.Map.of(
+                        "id", user.getId(),
+                        "email", user.getEmail() != null ? user.getEmail() : "Email not provided"
+                ))
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(uniqueUsers);
+
+        return ResponseEntity.ok(userList);
     }
 
     // --- JOURNEY 6: NOTIFICATION TELEMETRY ---
