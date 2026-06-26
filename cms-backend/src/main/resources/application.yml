@@ -1,13 +1,13 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/cms
-    username: ${DB_USERNAME:postgres}     # Change to your PostgreSQL username
-    password: ${DB_PASSWORD:Govardhan@007}    # Change to your PostgreSQL password
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Govardhan@007}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: validate   # Flyway creates the tables, Hibernate just validates them
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -19,8 +19,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: consentmanagement88@gmail.com   # Replace with your actual Gmail address
-    password: zbtk boqc mjnt iorj      # Replace with a Google App Password (NOT your normal password)
+    username: consentmanagement88@gmail.com
+    password: zbtk boqc mjnt iorj
     properties:
       mail:
         smtp:
@@ -35,8 +35,7 @@ spring:
           issuer-uri: https://dev-m6frsjfbk7k258zu.us.auth0.com/
           audiences: https://cms-api
 
-
-  server:
+server:
   port: 8080
 
 auth0:
@@ -44,3 +43,9 @@ auth0:
   management:
     client-id: xDE28l12I1qmh7PfLhcYTTpmYRlxT4DN
     client-secret: rk0bWY5FejbsbJEz-04DLtGLXLBquZ3xHSfFPQNzYYysjrhcGFrcheCbbhs9BzUt
+
+# Anyone cloning this project — change this to your email
+# This email gets ADMIN role automatically on first login
+app:
+  admin:
+    email: consentmanagement88@gmail.com
