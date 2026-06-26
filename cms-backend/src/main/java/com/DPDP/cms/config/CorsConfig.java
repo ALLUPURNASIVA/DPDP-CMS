@@ -22,7 +22,7 @@ public class CorsConfig {
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 
         // Allow Authorization header (needed for JWT) and Content-Type
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-User-Email"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-User-Email", "X-Worker-Email"));
 
         // Allow credentials
         config.setAllowCredentials(true);

@@ -1,9 +1,8 @@
 package com.DPDP.cms.controller;
 
 import com.DPDP.cms.entity.ConsentArtifact;
-import com.DPDP.cms.entity.FiduciaryWorker;
+import com.DPDP.cms.entity.User;
 import com.DPDP.cms.repository.ConsentArtifactRepository;
-import com.DPDP.cms.repository.FiduciaryWorkerRepository;
 import com.DPDP.cms.repository.PurposeRepository;
 import com.DPDP.cms.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,14 +17,15 @@ import java.util.List;
 @RequestMapping("/api/worker")
 public class WorkerController {
 
-    @Autowired private FiduciaryWorkerRepository workerRepo;
+    // REMOVED: FiduciaryWorkerRepository — no longer needed
     @Autowired private PurposeRepository purposeRepo;
     @Autowired private ConsentArtifactRepository consentRepo;
     @Autowired private UserRepository userRepo;
 
     // 1. SECURITY CORE: Identify the worker and their assigned company
+    // CHANGED: now looks up role from users table instead of fiduciary_workers table
     private String getWorkerTenantId(Jwt jwt, String headerEmail) {
-        // Try token first (in case Auth0 is ever configured to send it)
+        // Try token first
         String email = jwt.getClaimAsString("email");
 
         // Fallback to the secure frontend header
@@ -37,14 +37,24 @@ public class WorkerController {
             throw new RuntimeException("Access Denied: Missing worker email identity.");
         }
 
-        // Query the database
-        java.util.Optional<FiduciaryWorker> workerOpt = workerRepo.findByEmail(email);
+        // Look up user in users table and check role
+        java.util.Optional<User> userOpt = userRepo.findByEmail(email);
 
-        if (workerOpt.isEmpty()) {
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("Access Denied: " + email + " is not found in the system.");
+        }
+
+        User user = userOpt.get();
+
+        if (!"FIDUCIARY_WORKER".equals(user.getRole())) {
             throw new RuntimeException("Access Denied: " + email + " is not an authorized worker.");
         }
 
-        return workerOpt.get().getTenantId();
+        if (user.getTenantId() == null || user.getTenantId().isEmpty()) {
+            throw new RuntimeException("Access Denied: " + email + " has no assigned company.");
+        }
+
+        return user.getTenantId();
     }
 
     // 2. Fetch Purposes
@@ -61,14 +71,14 @@ public class WorkerController {
     public ResponseEntity<java.util.Map<String, Object>> validateDataUsage(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Worker-Email", required = false) String workerEmail,
-            @RequestParam String email, // This is the TARGET user's email
+            @RequestParam String email,
             @RequestParam Long purposeId) {
 
         String tenantId = getWorkerTenantId(jwt, workerEmail);
         java.util.Map<String, Object> response = new java.util.HashMap<>();
         response.put("email", email);
 
-        java.util.Optional<com.DPDP.cms.entity.User> userOpt = userRepo.findByEmail(email);
+        java.util.Optional<User> userOpt = userRepo.findByEmail(email);
         if (userOpt.isEmpty()) {
             response.put("isCompliant", false);
             response.put("reason", "User not found in the system.");
@@ -76,7 +86,6 @@ public class WorkerController {
         }
 
         String userId = userOpt.get().getId();
-        // 3. Check Ledger for Valid Consent (Fetching the most recent record first)
         List<ConsentArtifact> history = consentRepo.findByUserIdAndTenantIdAndPurposeIdOrderByGrantedAtDesc(userId, tenantId, purposeId);
 
         if (history.isEmpty() || history.get(0).getStatus() != ConsentArtifact.ConsentStatus.ACTIVE) {
@@ -85,7 +94,6 @@ public class WorkerController {
             return ResponseEntity.ok(response);
         }
 
-        // Grab the most recent record
         ConsentArtifact consent = history.get(0);
 
         if (consent.getStatus() != ConsentArtifact.ConsentStatus.ACTIVE) {

@@ -1,9 +1,3 @@
-// UserManagement.jsx — Data Principal Directory tab
-//
-// Props:
-//   users         {Array}    — user list from parent
-//   onViewLogs    {Function} — callback(identifier) → switches parent to Audit tab pre-filtered
-
 import React, { useState } from 'react';
 import Icons from './Icons';
 
@@ -11,9 +5,11 @@ export default function UserManagement({ users = [], onViewLogs }) {
   const [selectedUser, setSelectedUser] = useState(null);
 
   // --- ROLE BADGE HELPER ---
+  // Now reads from your users table role field directly
   const renderRoleBadge = (user) => {
-    // 1. Hardcode the Super Admin check based on our security rule
-    if (user.email === 'consentmanagement88@gmail.com') {
+    const role = user.role || 'GENERAL_USER';
+
+    if (role === 'ADMIN') {
       return (
         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20">
           Platform Admin
@@ -21,20 +17,22 @@ export default function UserManagement({ users = [], onViewLogs }) {
       );
     }
 
-    // 2. Check for Fiduciary Representative
-    // (Handles both string 'role' and array 'roles' depending on how your Spring Boot backend formats it)
-    const isFiduciary = user.role === 'FIDUCIARY_REPRESENTATIVE' || 
-                       (user.roles && user.roles.includes('FIDUCIARY_REPRESENTATIVE'));
-
-    if (isFiduciary) {
+    if (role === 'FIDUCIARY_ADMIN') {
       return (
         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20">
-          Fiduciary Representative
+          Fiduciary Admin
         </span>
       );
     }
 
-    // 3. Default Fallback
+    if (role === 'FIDUCIARY_WORKER') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-600/20">
+          Fiduciary Worker
+        </span>
+      );
+    }
+
     return (
       <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-600/20">
         General User
@@ -74,8 +72,7 @@ export default function UserManagement({ users = [], onViewLogs }) {
                   <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
                     {user.email || user.id || user}
                   </td>
-                  
-                  {/* NEW ROLE COLUMN */}
+
                   <td className="px-6 py-4 whitespace-nowrap">
                     {renderRoleBadge(user)}
                   </td>
@@ -111,7 +108,6 @@ export default function UserManagement({ users = [], onViewLogs }) {
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden ring-1 ring-gray-900/5">
-            {/* Modal Header */}
             <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h3 className="text-lg font-bold text-gray-900">Principal Profile</h3>
               <button
@@ -122,15 +118,12 @@ export default function UserManagement({ users = [], onViewLogs }) {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="px-6 py-6 space-y-6">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                   System Role
                 </label>
-                <div>
-                  {renderRoleBadge(selectedUser)}
-                </div>
+                <div>{renderRoleBadge(selectedUser)}</div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
@@ -148,13 +141,22 @@ export default function UserManagement({ users = [], onViewLogs }) {
                   {selectedUser.email || 'Email not provided by backend'}
                 </div>
               </div>
+              {selectedUser.tenantId && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    Assigned Company
+                  </label>
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-900 shadow-sm">
+                    {selectedUser.tenantId}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Modal Footer */}
             <div className="px-6 py-4 bg-gray-50/80 border-t border-gray-100 flex justify-end">
               <button
                 onClick={() => setSelectedUser(null)}
-                className="px-5 py-2.5 bg-gray-900 text-white rounded-lg shadow-sm text-sm font-bold hover:bg-gray-800 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
+                className="px-5 py-2.5 bg-gray-900 text-white rounded-lg shadow-sm text-sm font-bold hover:bg-gray-800 transition-colors"
               >
                 Done
               </button>

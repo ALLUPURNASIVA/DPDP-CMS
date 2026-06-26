@@ -19,10 +19,13 @@ export default function WorkerDashboard() {
     const verifyWorkerAccess = async () => {
       try {
         const api = await getSecureClient(getAccessTokenSilently);
-        await api.get('/worker/verify', {
-          headers: { 'X-Worker-Email': user.email }
-        }); 
-        setIsAuthorized(true);
+        // CHANGED: check role from DB instead of old /worker/verify endpoint
+        const res = await api.get('/users/me');
+        if (res.data.role === 'FIDUCIARY_WORKER') {
+          setIsAuthorized(true);
+        } else {
+          setIsAuthorized(false);
+        }
       } catch (error) {
         console.error("Backend Verification Failed:", error);
         setIsAuthorized(false);
@@ -55,7 +58,7 @@ export default function WorkerDashboard() {
             Your account (<strong className="text-slate-800">{user?.email}</strong>) is not authorized to access the Fiduciary Worker environment. Please contact your Fiduciary Admin to request provisioning.
           </p>
           <button
-            onClick={() => window.location.href = '/'} // Native redirect since useNavigate is removed
+            onClick={() => window.location.href = '/'}
             className="w-full bg-slate-900 text-white font-bold px-6 py-3.5 rounded-xl hover:bg-slate-800 transition-colors shadow-md"
           >
             Return to Portal Hub
@@ -78,7 +81,6 @@ export default function WorkerDashboard() {
             <p className="text-sm font-bold text-gray-900">{user?.name || 'Worker'}</p>
             <p className="text-xs text-gray-500">{user?.email}</p>
           </div>
-          {/* Switch Portal button successfully removed from here */}
         </div>
       </nav>
 

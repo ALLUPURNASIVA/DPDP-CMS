@@ -135,7 +135,8 @@ export default function CompanyManagement({ onCompanyAdded }) {
       // Calls the new endpoint in UserController
       await api.put('/users/admin/assign-fiduciary', {
         email: assignEmail.trim(),
-        tenantId: assigningTenant.id
+        tenantId: assigningTenant.id,
+        tenantName: assigningTenant.name
       });
 
       toast.success(`${assignEmail} is now Fiduciary Admin for ${assigningTenant.name}`);
