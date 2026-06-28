@@ -19,8 +19,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: consentmanagement88@gmail.com
-    password: zbtk boqc mjnt iorj
+    username: ${MAIL_USERNAME:consentmanagement88@gmail.com}
+    password: ${MAIL_PASSWORD:zbtk boqc mjnt iorj}
     properties:
       mail:
         smtp:
@@ -44,8 +44,6 @@ auth0:
     client-id: xDE28l12I1qmh7PfLhcYTTpmYRlxT4DN
     client-secret: rk0bWY5FejbsbJEz-04DLtGLXLBquZ3xHSfFPQNzYYysjrhcGFrcheCbbhs9BzUt
 
-# Anyone cloning this project — change this to your email
-# This email gets ADMIN role automatically on first login
-app:
+platform:
   admin:
-    email: consentmanagement88@gmail.com
+    emails: ${PLATFORM_ADMIN_EMAILS:consentmanagement88@gmail.com}

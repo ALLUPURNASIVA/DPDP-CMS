@@ -1,12 +1,8 @@
 package com.DPDP.cms.seeder;
 
 import com.DPDP.cms.entity.NotificationLog;
-import com.DPDP.cms.entity.PendingRoleAssignment;
 import com.DPDP.cms.repository.NotificationLogRepository;
-import com.DPDP.cms.repository.PendingRoleAssignmentRepository;
-import com.DPDP.cms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -19,42 +15,9 @@ import java.util.UUID;
 public class DatabaseSeeder implements CommandLineRunner {
 
     private final NotificationLogRepository notificationRepo;
-    private final UserRepository userRepo;
-    private final PendingRoleAssignmentRepository pendingRepo;
-
-    @Value("${app.admin.email}")
-    private String adminEmail;
 
     @Override
     public void run(String... args) throws Exception {
-
-        // -------------------------------------------------------
-        // 1. ADMIN SEEDING
-        // Runs on every fresh DB — creates pending Admin assignment
-        // so first login with adminEmail gets ADMIN role automatically
-        // -------------------------------------------------------
-        boolean adminExists = userRepo.findAll().stream()
-                .anyMatch(u -> "ADMIN".equals(u.getRole()));
-
-        if (!adminExists && pendingRepo.findByEmail(adminEmail).isEmpty()) {
-            PendingRoleAssignment pending = PendingRoleAssignment.builder()
-                    .email(adminEmail)
-                    .role("ADMIN")
-                    .tenantId(null)
-                    .assignedAt(LocalDateTime.now())
-                    .build();
-            pendingRepo.save(pending);
-
-            System.out.println("====================================================");
-            System.out.println(" DPDP CMS — First Run Setup");
-            System.out.println(" Admin email configured: " + adminEmail);
-            System.out.println(" Log in with this email to activate Admin access.");
-            System.out.println("====================================================");
-        }
-
-        // -------------------------------------------------------
-        // 2. NOTIFICATION LOG SEEDING (your existing code)
-        // -------------------------------------------------------
         if (notificationRepo.count() == 0) {
 
             System.out.println("Seeding Notification Logs for presentation...");

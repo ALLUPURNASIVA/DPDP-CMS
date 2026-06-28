@@ -39,9 +39,6 @@ export default function App() {
 
           const { role } = response.data;
 
-          // Store role in sessionStorage so ProtectedRoute can use it
-          sessionStorage.setItem('userRole', role);
-
           // Redirect based on role
           if (role === 'ADMIN') {
             navigate('/admin/panel');
@@ -120,7 +117,7 @@ export default function App() {
                 <h3 className="mt-3 text-lg font-semibold">{user?.name || "User"}</h3>
                 <p className="text-sm text-gray-500">{user?.email}</p>
                 <p className="text-xs text-blue-500 mt-1 font-medium">
-                  {sessionStorage.getItem('userRole') || ''}
+{''}
                 </p>
               </div>
 
@@ -139,8 +136,7 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => {
-                    sessionStorage.removeItem('userRole');
-                    logout({ logoutParams: { returnTo: window.location.origin } });
+logout({ logoutParams: { returnTo: window.location.origin } });
                   }}
                   className="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg text-red-600"
                 >

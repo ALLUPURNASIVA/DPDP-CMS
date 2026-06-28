@@ -3,33 +3,24 @@ import { Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { getSecureClient } from '../api';
 
-// Wraps any route — only renders children if user has the right role
-// Otherwise sends them to /unauthorized
-
 export default function ProtectedRoute({ allowedRoles, children }) {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, isAuthenticated, isLoading } = useAuth0();
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isLoading) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
     const verifyRole = async () => {
       try {
-        // First check sessionStorage (fast, already set during sync)
-        const cachedRole = sessionStorage.getItem('userRole');
-        if (cachedRole) {
-          setRole(cachedRole);
-          setLoading(false);
-          return;
-        }
-
-        // Fallback — ask backend directly (e.g. on page refresh)
+        // Always fetch from backend — never use cache
         const api = await getSecureClient(getAccessTokenSilently);
         const res = await api.get('/users/me');
-        const fetchedRole = res.data.role;
-
-        sessionStorage.setItem('userRole', fetchedRole);
-        setRole(fetchedRole);
-
+        setRole(res.data.role);
       } catch (error) {
         console.error("Role check failed:", error);
         setRole(null);
@@ -39,7 +30,7 @@ export default function ProtectedRoute({ allowedRoles, children }) {
     };
 
     verifyRole();
-  }, []);
+  }, [isAuthenticated, isLoading]);
 
   if (loading) {
     return (
