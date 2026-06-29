@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSecureClient } from "../../api";
 import { useAuth0 } from "@auth0/auth0-react";
@@ -8,86 +8,125 @@ export default function MyCompanies() {
   const { getAccessTokenSilently, user } = useAuth0();
 
   const [companies, setCompanies] = useState([]);
-  const [myCompanies, setMyCompanies] = useState([]);
+  const [history, setHistory] = useState([]);
   const [companyStats, setCompanyStats] = useState({});
+  const [loading, setLoading] = useState(true);
+
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCompany, setSelectedCompany] = useState(null);
 
-  const isActiveConsent = (item) => item.status === "ACTIVE" || item.status === "GRANTED";
+  const getTenantId = (company) => company?.tenantId || company?.id;
+
+  const isActiveConsent = (item) => {
+    const status = String(item?.status || "").toUpperCase();
+    return status === "ACTIVE" || status === "GRANTED";
+  };
+
+  const activeConsentCounts = useMemo(() => {
+    return (history || []).reduce((acc, item) => {
+      if (!isActiveConsent(item) || !item.tenantId) return acc;
+
+      acc[item.tenantId] = (acc[item.tenantId] || 0) + 1;
+      return acc;
+    }, {});
+  }, [history]);
+
+  const connectedCompanies = useMemo(() => {
+    return (companies || []).filter((company) => {
+      const tenantId = getTenantId(company);
+      return tenantId && (activeConsentCounts[tenantId] || 0) > 0;
+    });
+  }, [companies, activeConsentCounts]);
 
   useEffect(() => {
-    fetchCompanies();
-    fetchHistory();
+    fetchPageData();
   }, []);
 
-  const fetchCompanies = async () => {
-    try {
-      const api = await getSecureClient(getAccessTokenSilently);
-      const res = await api.get("/consent/fiduciaries");
-      setCompanies(res.data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchHistory = async () => {
-    try {
-      const api = await getSecureClient(getAccessTokenSilently);
-      const res = await api.get("/consent/history");
-
-      const uniqueCompanies = [
-        ...new Set((res.data || []).filter(isActiveConsent).map((item) => item.tenantId))
-      ];
-
-      setMyCompanies(uniqueCompanies);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchCompanyStats = async (tenantId) => {
-    try {
-      const api = await getSecureClient(getAccessTokenSilently);
-      const res = await api.get(`/user/company-stats/${tenantId}`);
-
-      setCompanyStats((prev) => ({
-        ...prev,
-        [tenantId]: res.data
-      }));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const connectedCompanies = companies.filter((company) =>
-    myCompanies.includes(company.tenantId)
-  );
-
   useEffect(() => {
-    connectedCompanies.forEach((company) => fetchCompanyStats(company.tenantId));
-  }, [connectedCompanies.length]);
+    connectedCompanies.forEach((company) => {
+      const tenantId = getTenantId(company);
+      if (tenantId && !companyStats[tenantId]) {
+        fetchCompanyStats(tenantId);
+      }
+    });
+  }, [connectedCompanies]);
+
+  const fetchPageData = async () => {
+    setLoading(true);
+
+    try {
+      const api = await getSecureClient(getAccessTokenSilently);
+
+      const [companiesRes, historyRes] = await Promise.all([
+        api.get("/consent/fiduciaries"),
+        api.get("/consent/history")
+      ]);
+
+      setCompanies(companiesRes.data || []);
+      setHistory(historyRes.data || []);
+    } catch (err) {
+      console.error("Failed to load connected companies", err);
+      setCompanies([]);
+      setHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+ const fetchCompanyStats = async (tenantId) => {
+  try {
+    const api = await getSecureClient(getAccessTokenSilently);
+    const res = await api.get(`/complaints/my-stats/${tenantId}`);
+
+    setCompanyStats((prev) => ({
+      ...prev,
+      [tenantId]: {
+        complaintsRaised: res.data?.complaintsRaised ?? 0,
+        openComplaints: res.data?.openComplaints ?? 0
+      }
+    }));
+  } catch (err) {
+    console.error("Failed to load company complaint stats", err);
+
+    setCompanyStats((prev) => ({
+      ...prev,
+      [tenantId]: {
+        complaintsRaised: 0,
+        openComplaints: 0
+      }
+    }));
+  }
+};
 
   const submitComplaint = async () => {
     try {
+      const tenantId = getTenantId(selectedCompany);
+
+      if (!tenantId) {
+        alert("Company not selected.");
+        return;
+      }
+
       const api = await getSecureClient(getAccessTokenSilently);
 
       await api.post("/complaints", {
-        tenantId: selectedCompany?.tenantId,
+        tenantId,
         userId: user?.sub,
         subject,
         description
       });
 
       alert("Complaint submitted successfully");
+
       setSubject("");
       setDescription("");
       setShowComplaintModal(false);
+      setSelectedCompany(null);
 
-      if (selectedCompany?.tenantId) {
-        fetchCompanyStats(selectedCompany.tenantId);
-      }
+      await fetchCompanyStats(tenantId);
+      await fetchPageData();
     } catch (error) {
       console.error(error);
       alert("Failed to submit complaint. Please check your connection.");
@@ -110,10 +149,15 @@ export default function MyCompanies() {
         </p>
       </div>
 
-      {connectedCompanies.length === 0 ? (
+      {loading ? (
+        <div className="bg-white border rounded-xl p-10 text-center text-gray-500">
+          Loading connected companies...
+        </div>
+      ) : connectedCompanies.length === 0 ? (
         <div className="bg-white border rounded-xl p-10 text-center">
           <h2 className="text-xl font-bold text-gray-800">No connected companies found</h2>
           <p className="text-gray-500 mt-2">Explore companies and grant consent to connect.</p>
+
           <button
             onClick={() => navigate("/user/explore")}
             className="mt-5 bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700"
@@ -123,53 +167,59 @@ export default function MyCompanies() {
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-5">
-          {connectedCompanies.map((company) => (
-            <div key={company.id} className="bg-white border rounded-xl p-6 shadow-sm">
-              <h3 className="text-xl font-bold text-gray-800">{company.name}</h3>
+          {connectedCompanies.map((company) => {
+            const tenantId = getTenantId(company);
+            const stats = companyStats[tenantId] || {};
+            const activeCount = activeConsentCounts[tenantId] || 0;
 
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Active Consents</span>
-                  <span className="font-semibold text-green-600">
-                    {companyStats[company.tenantId]?.activeConsents ?? 0}
-                  </span>
+            return (
+              <div key={tenantId} className="bg-white border rounded-xl p-6 shadow-sm">
+                <h3 className="text-xl font-bold text-gray-800">{company.name}</h3>
+
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Active Consents</span>
+                    <span className="font-semibold text-green-600">
+                      {activeCount}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Complaints Raised</span>
+                    <span className="font-semibold text-orange-500">
+                      {stats.complaintsRaised ?? 0}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Open Complaints</span>
+                    <span className="font-semibold text-red-500">
+                      {stats.openComplaints ?? 0}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Complaints Raised</span>
-                  <span className="font-semibold text-orange-500">
-                    {companyStats[company.tenantId]?.complaintsRaised ?? 0}
-                  </span>
-                </div>
+                <div className="flex gap-3 mt-5">
+                  <button
+                    onClick={() => navigate(`/user/consent/${tenantId}`)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    Manage Consents
+                  </button>
 
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Open Complaints</span>
-                  <span className="font-semibold text-red-500">
-                    {companyStats[company.tenantId]?.openComplaints ?? 0}
-                  </span>
+                  <button
+                    onClick={() => {
+                      setSelectedCompany(company);
+                      setShowComplaintModal(true);
+                    }}
+                    className="text-red-600 hover:text-red-700 font-medium"
+                  >
+                    Raise Complaint
+                  </button>
                 </div>
               </div>
-
-              <div className="flex gap-3 mt-5">
-                <button
-                  onClick={() => navigate(`/user/consent/${company.tenantId}`)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-                >
-                  Manage Consents
-                </button>
-
-                <button
-                  onClick={() => {
-                    setSelectedCompany(company);
-                    setShowComplaintModal(true);
-                  }}
-                  className="text-red-600 hover:text-red-700 font-medium"
-                >
-                  Raise Complaint
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -196,7 +246,10 @@ export default function MyCompanies() {
 
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setShowComplaintModal(false)}
+                onClick={() => {
+                  setShowComplaintModal(false);
+                  setSelectedCompany(null);
+                }}
                 className="px-4 py-2 border rounded-lg"
               >
                 Cancel
@@ -204,7 +257,8 @@ export default function MyCompanies() {
 
               <button
                 onClick={submitComplaint}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                disabled={!subject.trim() || !description.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
               >
                 Submit Complaint
               </button>

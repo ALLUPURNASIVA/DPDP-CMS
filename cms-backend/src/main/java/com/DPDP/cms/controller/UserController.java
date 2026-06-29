@@ -1,8 +1,10 @@
 package com.DPDP.cms.controller;
 
 import com.DPDP.cms.entity.PendingRoleAssignment;
+import com.DPDP.cms.entity.Tenant;
 import com.DPDP.cms.entity.User;
 import com.DPDP.cms.repository.PendingRoleAssignmentRepository;
+import com.DPDP.cms.repository.TenantRepository;
 import com.DPDP.cms.repository.UserRepository;
 import com.DPDP.cms.service.EmailService;
 import jakarta.transaction.Transactional;
@@ -18,8 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-
-
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -27,6 +27,7 @@ public class UserController {
 
     private final UserRepository userRepo;
     private final PendingRoleAssignmentRepository pendingRepo;
+    private final TenantRepository tenantRepo;
     private final EmailService emailService;
 
     @Value("#{'${platform.admin.emails:}'.split(',')}")
@@ -39,6 +40,17 @@ public class UserController {
                 .anyMatch(adminEmail -> adminEmail.equalsIgnoreCase(email));
     }
 
+    private String companyName(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return "your assigned company";
+        }
+
+        return tenantRepo.findById(tenantId)
+                .map(Tenant::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(tenantId);
+    }
+
     @Transactional
     @PostMapping("/sync")
     public ResponseEntity<?> syncUser(
@@ -46,25 +58,52 @@ public class UserController {
             @AuthenticationPrincipal Jwt jwt) {
 
         String userId = jwt.getClaimAsString("sub");
-        String email = body.get("email");
+        String email = jwt.getClaimAsString("email");
+
+        if (email == null || email.isBlank()) {
+            email = body.get("email");
+        }
+
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Authenticated profile does not contain an email."
+            ));
+        }
+
         boolean platformAdmin = isPlatformAdminEmail(email);
+        Optional<PendingRoleAssignment> pendingAssignment = pendingRepo.findByEmailIgnoreCase(email);
 
         if (!userRepo.existsById(userId)) {
             User newUser = User.builder()
                     .id(userId)
                     .email(email)
-                    .role(platformAdmin ? "ADMIN" : "GENERAL_USER")
-                    .tenantId(null)
+                    .role(platformAdmin
+                            ? "ADMIN"
+                            : pendingAssignment.map(PendingRoleAssignment::getRole).orElse("GENERAL_USER"))
+                    .tenantId(platformAdmin
+                            ? null
+                            : pendingAssignment.map(PendingRoleAssignment::getTenantId).orElse(null))
                     .build();
 
             userRepo.save(newUser);
         }
 
         User user = userRepo.findById(userId).orElseThrow();
+        user.setEmail(email);
 
-        if (platformAdmin && !"ADMIN".equals(user.getRole())) {
+        if (platformAdmin) {
             user.setRole("ADMIN");
             user.setTenantId(null);
+            userRepo.save(user);
+        } else if (pendingAssignment.isPresent()) {
+            PendingRoleAssignment pending = pendingAssignment.get();
+
+            user.setRole(pending.getRole());
+            user.setTenantId(pending.getTenantId());
+            userRepo.save(user);
+
+            pendingRepo.deleteByEmailIgnoreCase(email);
+        } else {
             userRepo.save(user);
         }
 
@@ -91,9 +130,9 @@ public class UserController {
         String email = body.get("email");
         String tenantId = body.get("tenantId");
         String tenantName = body.get("tenantName");
-        String displayName = tenantName != null ? tenantName : tenantId;
+        String displayName = tenantName != null ? tenantName : companyName(tenantId);
 
-        Optional<User> existingUser = userRepo.findByEmail(email);
+        Optional<User> existingUser = userRepo.findByEmailIgnoreCase(email);
 
         if (existingUser.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -135,46 +174,59 @@ public class UserController {
         }
 
         String email = body.get("email");
+        String tenantId = requester.getTenantId();
+        String displayName = companyName(tenantId);
 
-        Optional<User> existingUser = userRepo.findByEmail(email);
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Worker email is required."));
+        }
+
+        email = email.trim();
+
+        Optional<User> existingUser = userRepo.findByEmailIgnoreCase(email);
+
         if (existingUser.isPresent()) {
             User user = existingUser.get();
             user.setRole("FIDUCIARY_WORKER");
-            user.setTenantId(requester.getTenantId());
-            user.setCreatedAt(java.time.LocalDateTime.now());
+            user.setTenantId(tenantId);
+            user.setCreatedAt(LocalDateTime.now());
             userRepo.save(user);
 
             emailService.sendNotification(
                     email,
-                    "You have been assigned as a Worker - DPDP Portal",
+                    "You have been assigned as Worker for " + displayName,
                     "Hello,\n\n" +
-                            "You have been granted Worker access on the DPDP Compliance Portal.\n\n" +
+                            "You have been assigned as a Fiduciary Worker for " + displayName + " on the DPDP Compliance Portal.\n\n" +
                             "Please log in at: http://localhost:5173\n\n" +
-                            "You will be automatically directed to your Worker Dashboard.\n\n" +
+                            "For security, the portal will ask you to verify your email with a one-time OTP if you have not verified this account already.\n\n" +
+                            "After OTP verification, you will be directed to your Worker Dashboard.\n\n" +
                             "This is a system-generated message."
             );
 
             return ResponseEntity.ok(Map.of("message", "Worker assigned and notified."));
         }
 
-        PendingRoleAssignment pending = PendingRoleAssignment.builder()
-                .email(email)
-                .role("FIDUCIARY_WORKER")
-                .tenantId(requester.getTenantId())
-                .assignedAt(LocalDateTime.now())
-                .build();
+        Optional<PendingRoleAssignment> existingPending = pendingRepo.findByEmailIgnoreCase(email);
+
+        PendingRoleAssignment pending = existingPending.orElseGet(PendingRoleAssignment::new);
+        pending.setEmail(email);
+        pending.setRole("FIDUCIARY_WORKER");
+        pending.setTenantId(tenantId);
+        pending.setAssignedAt(LocalDateTime.now());
+
         pendingRepo.save(pending);
 
         emailService.sendNotification(
                 email,
-                "You have been invited as a Worker - DPDP Portal",
+                "You have been invited as Worker for " + displayName,
                 "Hello,\n\n" +
-                        "You have been assigned as a Fiduciary Worker on the DPDP Compliance Portal.\n\n" +
+                        "You have been assigned as a Fiduciary Worker for " + displayName + " on the DPDP Compliance Portal.\n\n" +
                         "To get started:\n" +
                         "1. Visit: http://localhost:5173\n" +
-                        "2. Click 'Log In' and sign up with this email address\n" +
-                        "3. You will be automatically directed to your Worker Dashboard\n\n" +
-                        "No additional steps needed - your role is pre-configured.\n\n" +
+                        "2. Click Log In and sign up with this email address\n" +
+                        "3. Verify your email with the one-time OTP shown in the portal\n" +
+                        "4. You will be directed to your Worker Dashboard\n\n" +
+                        "This invitation is linked to this email address only.\n\n" +
                         "This is a system-generated message."
         );
 

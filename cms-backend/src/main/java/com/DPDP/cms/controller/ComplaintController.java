@@ -18,6 +18,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 @RestController
 @RequestMapping("/api/complaints")
 @RequiredArgsConstructor
@@ -183,5 +185,28 @@ public class ComplaintController {
             System.err.println("WARNING: Data purged, but could not notify user because email was not found for ID: " + targetUserId);
         }
         return ResponseEntity.ok("Data purged, logged, and user notified.");
+    }
+    @GetMapping("/my-stats/{tenantId}")
+    public ResponseEntity<?> getMyComplaintStats(
+            @PathVariable String tenantId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        String userId = jwt.getClaimAsString("sub");
+
+        long complaintsRaised = complaintRepository.countByUserIdAndTenantId(
+                userId,
+                tenantId
+        );
+
+        long openComplaints = complaintRepository.countByUserIdAndTenantIdAndStatus(
+                userId,
+                tenantId,
+                "OPEN"
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "complaintsRaised", complaintsRaised,
+                "openComplaints", openComplaints
+        ));
     }
 }

@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { getSecureClient } from '../api';
+import GeneralUserOtpGate from './GeneralUserOtpGate';
 
 export default function ProtectedRoute({ allowedRoles, children }) {
   const { getAccessTokenSilently, isAuthenticated, isLoading } = useAuth0();
+
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isLoading) return;
+
     if (!isAuthenticated) {
       setLoading(false);
       return;
@@ -17,7 +20,6 @@ export default function ProtectedRoute({ allowedRoles, children }) {
 
     const verifyRole = async () => {
       try {
-        // Always fetch from backend — never use cache
         const api = await getSecureClient(getAccessTokenSilently);
         const res = await api.get('/users/me');
         setRole(res.data.role);
@@ -30,7 +32,7 @@ export default function ProtectedRoute({ allowedRoles, children }) {
     };
 
     verifyRole();
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, getAccessTokenSilently]);
 
   if (loading) {
     return (
@@ -42,6 +44,10 @@ export default function ProtectedRoute({ allowedRoles, children }) {
 
   if (!role || !allowedRoles.includes(role)) {
     return <Navigate to="/unauthorized" replace />;
+  }
+
+  if (role === 'GENERAL_USER' || role === 'FIDUCIARY_WORKER') {
+    return <GeneralUserOtpGate>{children}</GeneralUserOtpGate>;
   }
 
   return children;

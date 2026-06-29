@@ -1,8 +1,3 @@
-// Notifications.jsx — Delivery Telemetry tab
-//
-// Props:
-//   notifications {Array} — notification records from parent
-
 import React, { useState } from 'react';
 
 const FILTER_OPTIONS = ['All', 'Sent', 'Pending', 'Failed'];
@@ -14,16 +9,28 @@ export default function Notifications({ notifications = [] }) {
     ? notifications
     : notifications.filter(n => n.status === notifFilter.toUpperCase());
 
+  const failedCount = notifications.filter(n => n.status === 'FAILED').length;
+
+  const diagnostics = (notification) => {
+    if (notification.errorLog) return notification.errorLog;
+    if (notification.status === 'FAILED') return 'Email provider rejected the message or recipient address was invalid.';
+    if (notification.status === 'PENDING') return 'Waiting for delivery result.';
+    return '250 OK Delivered';
+  };
+
   return (
     <div className="flex flex-col">
-      {/* Header */}
       <div className="p-5 border-b border-gray-100 bg-gray-50/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h3 className="text-base font-bold text-gray-900">Delivery Telemetry</h3>
           <p className="text-sm text-gray-500 mt-1 font-medium">Real-time status of outgoing platform messages.</p>
+          {failedCount > 0 && (
+            <p className="text-xs text-rose-600 mt-2 font-bold">
+              {failedCount} failed notification{failedCount > 1 ? 's' : ''}: SMTP delivery failed or recipient address was invalid.
+            </p>
+          )}
         </div>
 
-        {/* Filter Pills */}
         <div className="flex bg-gray-100/80 p-1 rounded-lg border border-gray-200 shadow-sm">
           {FILTER_OPTIONS.map(status => (
             <button
@@ -41,7 +48,6 @@ export default function Notifications({ notifications = [] }) {
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-auto max-h-[calc(100vh-13rem)]">
         <table className="min-w-full text-sm text-left">
           <thead className="bg-gray-50/50 border-b border-gray-200 sticky top-0 z-10">
@@ -65,24 +71,23 @@ export default function Notifications({ notifications = [] }) {
                   <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-bold">{n.recipient}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-medium">
                     {new Date(n.timestamp).toLocaleString(undefined, {
-                      month: 'short', day: 'numeric',
-                      hour: '2-digit', minute: '2-digit'
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
                     })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                      n.status === 'SENT'    ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20' :
-                      n.status === 'FAILED'  ? 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20' :
+                      n.status === 'SENT' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20' :
+                      n.status === 'FAILED' ? 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20' :
                       'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20'
                     }`}>
                       {n.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-mono text-xs font-medium">
-                    {n.errorLog
-                      ? <span className="text-rose-600">{n.errorLog}</span>
-                      : <span className="text-emerald-600">250 OK Delivered</span>
-                    }
+                  <td className={`px-6 py-4 font-mono text-xs font-medium ${n.status === 'FAILED' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {diagnostics(n)}
                   </td>
                 </tr>
               ))

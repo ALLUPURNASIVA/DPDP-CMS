@@ -116,10 +116,10 @@ export default function ConsentManager() {
       {/* Header with Back Button */}
       <div className="flex items-center gap-4 mb-6">
         <button 
-          onClick={() => navigate('/user/my-companies')}
+          onClick={() => navigate('/user')}
           className="text-gray-500 hover:text-blue-600 transition flex items-center gap-1"
         >
-          ← Back to MyCompanies
+          ← Back to Dashboard
         </button>
       </div>
 
