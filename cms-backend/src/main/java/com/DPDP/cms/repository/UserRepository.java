@@ -8,10 +8,11 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, String> {
 
-    // Needed for role assignment — admin/fiduciary searches by email
     Optional<User> findByEmail(String email);
 
-    List<User> findByTenantIdAndRole(String authenticatedTenantId, String fiduciaryWorker);
+    List<User> findByTenantIdAndRole(String tenantId, String role);
 
-    Object countByTenantIdAndRole(String tenantId, String fiduciaryWorker);
+    long countByTenantIdAndRole(String tenantId, String role);
+
+    Optional<User> findFirstByTenantIdAndRole(String tenantId, String role);
 }

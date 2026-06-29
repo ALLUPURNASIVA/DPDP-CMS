@@ -52,7 +52,7 @@ export default function FiduciaryDashboard() {
           {companyName ? `${companyName} Compliance Dashboard` : 'Compliance Dashboard'}
         </h1>
         <p className="text-gray-500 mt-2">
-          Logged in as Fiduciary Admin: <span className="font-medium text-gray-800">{user?.email}</span>
+          Manage purposes, consent records, worker access, and subject verification.
           {tenantId && (
             <span className="ml-3 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-semibold">
               {tenantId}

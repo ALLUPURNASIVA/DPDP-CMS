@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -48,32 +50,12 @@ public class UserController {
         boolean platformAdmin = isPlatformAdminEmail(email);
 
         if (!userRepo.existsById(userId)) {
-            Optional<PendingRoleAssignment> pending = pendingRepo.findByEmail(email);
-
-            User newUser;
-            if (platformAdmin) {
-                newUser = User.builder()
-                        .id(userId)
-                        .email(email)
-                        .role("ADMIN")
-                        .tenantId(null)
-                        .build();
-            } else if (pending.isPresent()) {
-                newUser = User.builder()
-                        .id(userId)
-                        .email(email)
-                        .role(pending.get().getRole())
-                        .tenantId(pending.get().getTenantId())
-                        .build();
-
-                pendingRepo.deleteByEmail(email);
-            } else {
-                newUser = User.builder()
-                        .id(userId)
-                        .email(email)
-                        .role("GENERAL_USER")
-                        .build();
-            }
+            User newUser = User.builder()
+                    .id(userId)
+                    .email(email)
+                    .role(platformAdmin ? "ADMIN" : "GENERAL_USER")
+                    .tenantId(null)
+                    .build();
 
             userRepo.save(newUser);
         }
@@ -112,50 +94,30 @@ public class UserController {
         String displayName = tenantName != null ? tenantName : tenantId;
 
         Optional<User> existingUser = userRepo.findByEmail(email);
-        if (existingUser.isPresent()) {
-            User user = existingUser.get();
-            user.setRole("FIDUCIARY_ADMIN");
-            user.setTenantId(tenantId);
-            userRepo.save(user);
 
-            emailService.sendNotification(
-                    email,
-                    "You have been assigned as Fiduciary Admin - DPDP Portal",
-                    "Hello,\n\n" +
-                            "You have been assigned as the Fiduciary Admin for " + displayName + " on the DPDP Compliance Portal.\n\n" +
-                            "Please log in at: http://localhost:5173\n\n" +
-                            "You will be automatically redirected to your Fiduciary Dashboard.\n\n" +
-                            "This is a system-generated message."
-            );
-
-            return ResponseEntity.ok(Map.of(
-                    "message", "Existing user promoted to Fiduciary Admin. Notification email sent."
+        if (existingUser.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "User has not signed up yet. Ask them to create an account first."
             ));
         }
 
-        PendingRoleAssignment pending = PendingRoleAssignment.builder()
-                .email(email)
-                .role("FIDUCIARY_ADMIN")
-                .tenantId(tenantId)
-                .assignedAt(LocalDateTime.now())
-                .build();
-        pendingRepo.save(pending);
+        User user = existingUser.get();
+        user.setRole("FIDUCIARY_ADMIN");
+        user.setTenantId(tenantId);
+        userRepo.save(user);
 
         emailService.sendNotification(
                 email,
-                "You have been invited as Fiduciary Admin - DPDP Portal",
+                "You have been assigned as Fiduciary Admin - DPDP Portal",
                 "Hello,\n\n" +
                         "You have been assigned as the Fiduciary Admin for " + displayName + " on the DPDP Compliance Portal.\n\n" +
-                        "To get started:\n" +
-                        "1. Visit: http://localhost:5173\n" +
-                        "2. Click 'Log In' and sign up with this email address\n" +
-                        "3. You will be automatically directed to your Fiduciary Dashboard\n\n" +
-                        "No additional steps needed - your role is pre-configured.\n\n" +
+                        "Please log in at: http://localhost:5173\n\n" +
+                        "You will be automatically redirected to your Fiduciary Dashboard.\n\n" +
                         "This is a system-generated message."
         );
 
         return ResponseEntity.ok(Map.of(
-                "message", "Invitation email sent to " + email + ". Role will be applied on first login."
+                "message", "Existing user promoted to Fiduciary Admin. Notification email sent."
         ));
     }
 

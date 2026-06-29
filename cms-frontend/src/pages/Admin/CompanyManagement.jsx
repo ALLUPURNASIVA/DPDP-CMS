@@ -122,37 +122,40 @@ export default function CompanyManagement({ onCompanyAdded }) {
   };
 
   // NEW: Handle Assign Fiduciary Rep
-  const handleAssignRep = async () => {
-    if (!assignEmail.trim()) {
-      toast.error('Please enter an email address.');
-      return;
+ const handleAssignRep = async () => {
+  if (!assignEmail.trim()) {
+    toast.error('Please enter an email address.');
+    return;
+  }
+
+  setAssignLoading(true);
+  try {
+    const api = await getSecureClient(getAccessTokenSilently);
+
+    await api.put('/users/admin/assign-fiduciary', {
+      email: assignEmail.trim(),
+      tenantId: assigningTenant.id,
+      tenantName: assigningTenant.name
+    });
+
+    toast.success(`${assignEmail} is now Fiduciary Admin for ${assigningTenant.name}`);
+    setAssigningTenant(null);
+    setAssignEmail('');
+
+    if (onCompanyAdded) onCompanyAdded();
+
+  } catch (err) {
+    const backendMessage = err.response?.data?.error;
+
+    if (err.response?.status === 400 && backendMessage) {
+      toast.error(backendMessage);
+    } else {
+      toast.error(backendMessage || 'Failed to assign rep. Please try again.');
     }
-
-    setAssignLoading(true);
-    try {
-      const api = await getSecureClient(getAccessTokenSilently);
-
-      // Calls the new endpoint in UserController
-      await api.put('/users/admin/assign-fiduciary', {
-        email: assignEmail.trim(),
-        tenantId: assigningTenant.id,
-        tenantName: assigningTenant.name
-      });
-
-      toast.success(`${assignEmail} is now Fiduciary Admin for ${assigningTenant.name}`);
-      setAssigningTenant(null);
-      setAssignEmail('');
-
-    } catch (err) {
-      if (err.response?.status === 404) {
-        toast.error('User not found. They must log in to the portal at least once first.');
-      } else {
-        toast.error('Failed to assign rep. Please try again.');
-      }
-    } finally {
-      setAssignLoading(false);
-    }
-  };
+  } finally {
+    setAssignLoading(false);
+  }
+};
 
   return (
     <div className="grid lg:grid-cols-3 gap-8 relative">
@@ -219,16 +222,19 @@ export default function CompanyManagement({ onCompanyAdded }) {
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
               <tr>
+                
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">DB ID</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Company Name</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Fiduciary Admin</th>
                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
+              
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
               {isLoading ? (
-                <tr><td colSpan="3" className="p-12 text-center text-sm font-medium text-gray-500">Loading fiduciaries...</td></tr>
+                <tr><td colSpan="4" className="p-12 text-center text-sm font-medium text-gray-500">Loading fiduciaries...</td></tr>
               ) : fiduciaries.length === 0 ? (
-                <tr><td colSpan="3" className="p-12 text-center text-sm font-medium text-gray-500">No companies onboarded yet.</td></tr>
+                <tr><td colSpan="4" className="p-12 text-center text-sm font-medium text-gray-500">No companies onboarded yet.</td></tr>
               ) : (
                 fiduciaries.map(company => (
                   <tr key={company.id} className={`transition-colors ${editingId === company.id ? 'bg-indigo-50/30' : 'hover:bg-gray-50/80'}`}>
@@ -239,19 +245,36 @@ export default function CompanyManagement({ onCompanyAdded }) {
                         {company.name}
                       </div>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+  {company.fiduciaryAdminEmail ? (
+    <div>
+      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+        Assigned
+      </span>
+      <p className="text-xs text-gray-500 mt-1 font-medium">
+        {company.fiduciaryAdminEmail}
+      </p>
+    </div>
+  ) : (
+    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
+      Not assigned
+    </span>
+  )}
+</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right space-x-4">
                       {/* NEW: Assign Rep button */}
                       <button
-                        onClick={() => { setAssigningTenant({ id: company.id, name: company.name }); setAssignEmail(''); }}
+                        onClick={() => {
+                          setAssigningTenant({
+                            id: company.id,
+                            name: company.name,
+                            fiduciaryAdminEmail: company.fiduciaryAdminEmail
+                          });
+                          setAssignEmail('');
+                        }}
                         className="text-emerald-600 hover:text-emerald-800 text-sm font-bold transition-colors"
                       >
-                        Assign Rep
-                      </button>
-                      <button
-                        onClick={() => handleEditClick(company)}
-                        className="text-indigo-600 hover:text-indigo-900 text-sm font-bold transition-colors"
-                      >
-                        Edit
+                        {company.fiduciaryAdminEmail ? 'Change Rep' : 'Assign Rep'}
                       </button>
                       <button
                         onClick={() => handleDeleteCompany(company.id, company.name)}
@@ -273,11 +296,19 @@ export default function CompanyManagement({ onCompanyAdded }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden ring-1 ring-gray-900/5">
             <div className="px-6 py-6 border-b border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900">Assign Fiduciary Rep</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                Assigning for: <span className="font-semibold text-gray-700">{assigningTenant.name}</span>
-              </p>
-            </div>
+                <h3 className="text-xl font-bold text-gray-900">Assign Fiduciary Rep</h3>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  Assigning for: <span className="font-semibold text-gray-700">{assigningTenant.name}</span>
+                </p>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  Current Fiduciary Admin:{' '}
+                  <span className="font-semibold text-gray-700">
+                    {assigningTenant.fiduciaryAdminEmail || 'Not assigned'}
+                  </span>
+                </p>
+              </div>
 
             <div className="px-6 py-6 space-y-4">
               <div>

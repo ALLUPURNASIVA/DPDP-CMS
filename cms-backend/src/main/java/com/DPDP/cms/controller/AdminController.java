@@ -64,12 +64,24 @@ public class AdminController {
     // =====================================================
 
     @GetMapping("/admin/fiduciaries")
-    public List<Tenant> getAllFiduciaries() {
+    public List<Map<String, Object>> getAllFiduciaries() {
         return tenantRepo.findAll().stream()
                 .filter(t -> t.getIsActive() != null && t.getIsActive())
+                .map(t -> {
+                    String adminEmail = userRepo
+                            .findFirstByTenantIdAndRole(t.getId(), "FIDUCIARY_ADMIN")
+                            .map(User::getEmail)
+                            .orElse(null);
+
+                    return Map.<String, Object>of(
+                            "id", t.getId(),
+                            "name", t.getName(),
+                            "isActive", t.getIsActive(),
+                            "fiduciaryAdminEmail", adminEmail != null ? adminEmail : ""
+                    );
+                })
                 .collect(Collectors.toList());
     }
-
     @PostMapping("/admin/fiduciaries")
     public ResponseEntity<?> createFiduciary(@RequestBody Map<String, String> payload) {
         String newTenantId = payload.get("tenantId");
@@ -237,11 +249,12 @@ public class AdminController {
     // Endpoint: /api/admin/users
     @GetMapping("/admin/users")
     public ResponseEntity<List<java.util.Map<String, String>>> getUniqueUsers() {
-        // Fetch all users from the User table to include their resolved emails
         List<java.util.Map<String, String>> userList = userRepo.findAll().stream()
                 .map(user -> java.util.Map.of(
                         "id", user.getId(),
-                        "email", user.getEmail() != null ? user.getEmail() : "Email not provided"
+                        "email", user.getEmail() != null ? user.getEmail() : "Email not provided",
+                        "role", user.getRole() != null ? user.getRole() : "GENERAL_USER",
+                        "tenantId", user.getTenantId() != null ? user.getTenantId() : ""
                 ))
                 .collect(Collectors.toList());
 
