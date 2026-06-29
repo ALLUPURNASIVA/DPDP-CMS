@@ -2,6 +2,8 @@ package com.DPDP.cms.repository;
 
 import com.DPDP.cms.entity.ConsentArtifact;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -61,4 +63,13 @@ public interface ConsentArtifactRepository extends JpaRepository<ConsentArtifact
 
     // Changed to List, and ordered by Date descending so the newest is always first
     List<ConsentArtifact> findByUserIdAndTenantIdAndPurposeIdOrderByGrantedAtDesc(String userId, String tenantId, Long purposeId);
+
+    void deleteByUserIdAndTenantId(String userId, String tenantId);
+
+    long countByTenantIdAndStatusAndGrantedAtBetween(
+            String tenantId,
+            ConsentArtifact.ConsentStatus status,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 }

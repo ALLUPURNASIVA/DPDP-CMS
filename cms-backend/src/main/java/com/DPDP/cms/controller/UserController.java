@@ -179,6 +179,7 @@ public class UserController {
             User user = existingUser.get();
             user.setRole("FIDUCIARY_WORKER");
             user.setTenantId(requester.getTenantId());
+            user.setCreatedAt(java.time.LocalDateTime.now());
             userRepo.save(user);
 
             emailService.sendNotification(

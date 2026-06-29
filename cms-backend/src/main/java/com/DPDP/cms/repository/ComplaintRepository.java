@@ -28,4 +28,6 @@ public interface ComplaintRepository extends JpaRepository<Complaint, String> {
             String tenantId,
             String status
     );
+
+    List<Complaint> findByTenantIdAndStatus(String tenantId, String status);
 }

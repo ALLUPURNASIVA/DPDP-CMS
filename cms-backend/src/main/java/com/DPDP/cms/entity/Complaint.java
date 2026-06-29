@@ -28,4 +28,6 @@ public class Complaint {
     private String status;
 
     private LocalDateTime createdAt;
+
+    private String resolutionNote;
 }

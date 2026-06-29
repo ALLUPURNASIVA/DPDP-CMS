@@ -8,7 +8,7 @@ import axios from "axios";
 export default function MyCompanies() {
 
   const navigate = useNavigate();
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, user } = useAuth0();
 
   const [companies, setCompanies] = useState([]);
   const [history, setHistory] = useState([]);
@@ -26,18 +26,6 @@ const [companyStats, setCompanyStats] = useState({});
     fetchHistory();
   }, []);
   
-  /*useEffect(() => {
-
-  axios
-    .get("http://localhost:8080/api/fiduciary/stats")
-    .then((res) => {
-      setStats(res.data);
-    })
-    .catch((err) => {
-      console.error(err);
-    });
-
-}, []);*/
   const fetchCompanies = async () => {
     try {
 
@@ -117,42 +105,40 @@ useEffect(() => {
   }
 
 }, [connectedCompanies.length]);
+
 const submitComplaint = async () => {
   try {
-
-    await axios.post(
-      "http://localhost:8080/api/complaints",
-      {
-        tenantId: selectedCompany?.tenantId,
-        userId: "USER_001",
-        subject,
-        description
-      }
-    );
+    // 1. Get the secure client
+    const api = await getSecureClient(getAccessTokenSilently);
+    
+    // 2. Make the POST request using the secure client
+    // Note: I am using user.sub as a placeholder for a dynamic user ID
+    await api.post("/complaints", {
+      tenantId: selectedCompany?.tenantId,
+      userId: user?.sub, 
+      subject,
+      description
+    });
 
     alert("Complaint submitted successfully");
-
     setSubject("");
     setDescription("");
     setShowComplaintModal(false);
-
   } catch (error) {
     console.error(error);
-    alert("Failed to submit complaint");
+    alert("Failed to submit complaint. Please check your connection.");
   }
 };
 
+return (
 
-
-  return (
-
-    <div className="max-w-6xl mx-auto">
-    <button
-  onClick={() => navigate('/user')}
-  className="text-gray-500 hover:text-blue-600 transition"
->
+  <div className="max-w-6xl mx-auto">
+  <button
+    onClick={() => navigate('/user')}
+    className="text-gray-500 hover:text-blue-600 transition"
+  >
   ← Back to Dashboard
-</button>
+  </button>
 
       {/* Header */}
 

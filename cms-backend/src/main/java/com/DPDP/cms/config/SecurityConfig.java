@@ -3,9 +3,13 @@ package com.DPDP.cms.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -15,6 +19,22 @@ public class SecurityConfig {
 
     @Autowired
     private CorsConfigurationSource corsConfigurationSource;
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        // 1. Create a factory with longer timeouts (e.g., 10 seconds)
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10000); // 10 seconds
+        factory.setReadTimeout(10000);    // 10 seconds
+
+        // 2. Create the RestTemplate
+        RestTemplate restTemplate = new RestTemplate(factory);
+
+        // 3. Configure the Decoder with your issuer URI and the custom template
+        return NimbusJwtDecoder.withIssuerLocation("https://dev-m6frsjfbk7k258zu.us.auth0.com/")
+                .restOperations(restTemplate)
+                .build();
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {

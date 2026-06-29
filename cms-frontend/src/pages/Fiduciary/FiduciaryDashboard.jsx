@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { LayoutDashboard, Settings, Files, ShieldCheck, Users } from 'lucide-react';
+import { LayoutDashboard, Settings, Files, ShieldCheck, Users, AlertCircle, ListChecks } from 'lucide-react';
 import { getSecureClient } from '../../api';
 
 // Tabs
@@ -9,6 +9,8 @@ import PurposeManagement from './tabs/PurposeManagement';
 import ConsentDirectory from './tabs/ConsentDirectory';
 import SubjectProfile from './tabs/SubjectProfile';
 import WorkerAccess from './tabs/WorkerAccess';
+import ComplaintQueue from '../../components/ComplaintQueue';
+import ComplianceLogs from './tabs/ComplianceLogs'; // NEW IMPORT
 
 export default function FiduciaryDashboard() {
   const { user, getAccessTokenSilently } = useAuth0();
@@ -94,6 +96,19 @@ export default function FiduciaryDashboard() {
             >
               <Users className="w-5 h-5 mr-3" /> Worker Access
             </button>
+            <button
+              onClick={() => setActiveTab('complaints')}
+              className={`w-full flex items-center px-6 py-4 font-medium transition-colors ${activeTab === 'complaints' ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}
+            >
+              <AlertCircle className="w-5 h-5 mr-3" /> Complaint Queue
+            </button>
+            {/* Compliance Logs Tab */}
+            <button
+              onClick={() => setActiveTab('audit')}
+              className={`w-full flex items-center px-6 py-4 font-medium transition-colors ${activeTab === 'audit' ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}
+            >
+              <ListChecks className="w-5 h-5 mr-3" /> Compliance Logs
+            </button>
           </div>
         </div>
 
@@ -104,6 +119,8 @@ export default function FiduciaryDashboard() {
           {activeTab === 'directory' && <ConsentDirectory />}
           {activeTab === 'profile' && <SubjectProfile />}
           {activeTab === 'team' && <WorkerAccess />}
+          {activeTab === 'complaints' && <ComplaintQueue viewMode="admin" />}
+          {activeTab === 'audit' && <ComplianceLogs />}
         </div>
 
       </div>

@@ -1,0 +1,1 @@
+ALTER TABLE complaint ADD COLUMN resolution_note VARCHAR(255);

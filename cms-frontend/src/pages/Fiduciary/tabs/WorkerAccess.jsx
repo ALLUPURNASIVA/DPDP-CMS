@@ -106,7 +106,9 @@ export default function WorkerAccess() {
                 <tr key={w.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 font-medium text-gray-900">{w.email}</td>
                   <td className="px-6 py-4 text-gray-500">
-                    {new Date(w.addedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {w.createdAt 
+                      ? new Date(w.createdAt).toLocaleDateString()
+                      : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button 

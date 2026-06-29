@@ -4,10 +4,7 @@ import com.DPDP.cms.entity.ConsentArtifact;
 import com.DPDP.cms.entity.FiduciaryWorker;
 import com.DPDP.cms.entity.Purpose;
 import com.DPDP.cms.entity.User;
-import com.DPDP.cms.repository.ConsentArtifactRepository;
-import com.DPDP.cms.repository.FiduciaryWorkerRepository;
-import com.DPDP.cms.repository.PurposeRepository;
-import com.DPDP.cms.repository.UserRepository;
+import com.DPDP.cms.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +12,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +26,7 @@ public class FiduciaryAdminController {
     private final PurposeRepository purposeRepo;
     private final ConsentArtifactRepository consentRepo;
     private final FiduciaryWorkerRepository workerRepo;
+    private final ComplaintRepository complaintRepo;
 
     // --- SECURITY GATEWAY ---
     private String getAuthenticatedTenantId() {
@@ -211,8 +211,8 @@ public class FiduciaryAdminController {
     // 7. WORKER ACCESS MANAGEMENT
     // =====================================================
     @GetMapping("/workers")
-    public ResponseEntity<List<FiduciaryWorker>> getWorkers() {
-        return ResponseEntity.ok(workerRepo.findByTenantId(getAuthenticatedTenantId()));
+    public ResponseEntity<List<User>> getWorkers() {
+        return ResponseEntity.ok(userRepo.findByTenantIdAndRole(getAuthenticatedTenantId(), "FIDUCIARY_WORKER"));
     }
 
     @PostMapping("/workers")
@@ -274,50 +274,69 @@ public class FiduciaryAdminController {
     // EXECUTIVE ANALYTICS COMMAND CENTER
     // =====================================================
     @GetMapping("/analytics")
-    public ResponseEntity<java.util.Map<String, Object>> getAnalytics() {
+    public ResponseEntity<Map<String, Object>> getAnalytics() {
         String tenantId = getAuthenticatedTenantId();
-        java.util.Map<String, Object> metrics = new java.util.HashMap<>();
+        Map<String, Object> metrics = new HashMap<>();
 
         List<ConsentArtifact> allConsents = consentRepo.findByTenantId(tenantId);
-        List<com.DPDP.cms.entity.Purpose> allPurposes = purposeRepo.findByTenantId(tenantId).stream()
+        List<Purpose> allPurposes = purposeRepo.findByTenantId(tenantId).stream()
                 .filter(p -> p.getIsActive() == null || p.getIsActive())
                 .toList();
 
-        long totalConsents = allConsents.size();
+        // 1. Existing KPIs
+        long totalUsers = allConsents.stream().map(ConsentArtifact::getUserId).distinct().count();
         long activeConsents = allConsents.stream().filter(c -> c.getStatus() == ConsentArtifact.ConsentStatus.ACTIVE).count();
         long withdrawnConsents = allConsents.stream().filter(c -> c.getStatus() == ConsentArtifact.ConsentStatus.WITHDRAWN).count();
 
-        int complianceHealth = totalConsents == 0 ? 100 : (int) ((activeConsents * 100.0f) / totalConsents);
-
-        metrics.put("totalConsents", totalConsents);
         metrics.put("activeConsents", activeConsents);
         metrics.put("withdrawnConsents", withdrawnConsents);
-        metrics.put("complianceHealth", complianceHealth);
+        long pendingQueries = complaintRepo.countByTenantIdAndStatus(tenantId, "ESCALATED");
+        metrics.put("pendingQueries", pendingQueries);
+        metrics.put("totalUsers", totalUsers);
+        metrics.put("totalWorkers", userRepo.countByTenantIdAndRole(tenantId, "FIDUCIARY_WORKER"));
 
-        List<java.util.Map<String, Object>> purposeBreakdown = new java.util.ArrayList<>();
+        // --- CONSENT ARTIFACT TRENDS (Last 7 Days) ---
+        List<Map<String, Object>> activityComparison = new ArrayList<>();
+        java.time.LocalDate today = java.time.LocalDate.now();
 
-        for (com.DPDP.cms.entity.Purpose p : allPurposes) {
-            long count = allConsents.stream()
+        for (int i = 6; i >= 0; i--) {
+            java.time.LocalDate date = today.minusDays(i);
+            java.time.LocalDateTime start = date.atStartOfDay();
+            java.time.LocalDateTime end = date.atTime(java.time.LocalTime.MAX);
+
+            // Both use grantedAt, as requested
+            long grantedCount = consentRepo.countByTenantIdAndStatusAndGrantedAtBetween(
+                    tenantId, ConsentArtifact.ConsentStatus.ACTIVE, start, end);
+
+            long withdrawnCount = consentRepo.countByTenantIdAndStatusAndGrantedAtBetween(
+                    tenantId, ConsentArtifact.ConsentStatus.WITHDRAWN, start, end);
+
+            activityComparison.add(Map.of(
+                    "day", date.format(java.time.format.DateTimeFormatter.ofPattern("EEE")),
+                    "granted", grantedCount,
+                    "withdrawn", withdrawnCount
+            ));
+        }
+        metrics.put("activityComparison", activityComparison);
+
+        // 3. Purpose Access Stats (The new "Side Bar Graph" data)
+        List<Map<String, Object>> purposeAccessStats = new ArrayList<>();
+        long totalUniqueUsers = allConsents.stream().map(ConsentArtifact::getUserId).distinct().count();
+
+        for (Purpose p : allPurposes) {
+            long activeCount = allConsents.stream()
                     .filter(c -> c.getPurpose() != null && c.getPurpose().getId().equals(p.getId()) && c.getStatus() == ConsentArtifact.ConsentStatus.ACTIVE)
                     .count();
 
-            java.util.Map<String, Object> pStats = new java.util.HashMap<>();
-            pStats.put("name", p.getName());
-            pStats.put("activeCount", count);
-            purposeBreakdown.add(pStats);
+            // Calculate percentage based on total unique users
+            double percentage = (totalUniqueUsers == 0) ? 0 : ((double) activeCount / totalUniqueUsers) * 100;
+
+            purposeAccessStats.add(Map.of(
+                    "name", p.getName(),
+                    "percentage", (int) Math.round(percentage)
+            ));
         }
-
-        purposeBreakdown.sort((a, b) -> Long.compare((Long) b.get("activeCount"), (Long) a.get("activeCount")));
-        metrics.put("purposeBreakdown", purposeBreakdown);
-
-        long workerCount = workerRepo.countByTenantId(tenantId);
-        metrics.put("totalWorkers", workerCount);
-
-        long totalUsers = allConsents.stream()
-                .map(ConsentArtifact::getUserId)
-                .distinct()
-                .count();
-        metrics.put("totalUsers", totalUsers);
+        metrics.put("purposeAccessStats", purposeAccessStats);
 
         return ResponseEntity.ok(metrics);
     }
