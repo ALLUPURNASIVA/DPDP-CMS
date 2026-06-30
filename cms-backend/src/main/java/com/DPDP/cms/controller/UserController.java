@@ -55,7 +55,11 @@ public class UserController {
     public ResponseEntity<?> syncUser(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal Jwt jwt) {
-
+System.out.println("=== SYNC DEBUG START ===");
+System.out.println("JWT SUB: " + jwt.getClaimAsString("sub"));
+System.out.println("JWT EMAIL: " + jwt.getClaimAsString("email"));
+System.out.println("BODY EMAIL: " + body.get("email"));
+System.out.println("=== SYNC DEBUG END ===");
         String userId = jwt.getClaimAsString("sub");
         String email = jwt.getClaimAsString("email");
 

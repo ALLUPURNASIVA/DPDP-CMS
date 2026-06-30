@@ -44,13 +44,13 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/users/sync").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/users/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/users/sync").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
 
-                        .requestMatchers("/users/admin/**").authenticated()
+                        .requestMatchers("/api/users/admin/**").authenticated()
                         .requestMatchers("/api/admin/**").authenticated()
 
-                        .requestMatchers("/users/fiduciary/**").authenticated()
+                        .requestMatchers("/api/users/fiduciary/**").authenticated()
                         .requestMatchers("/api/fiduciary/**").authenticated()
 
                         .requestMatchers("/api/worker/**").authenticated()
@@ -61,9 +61,7 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> {})
-                )
-                .addFilterAfter(otpVerificationFilter, BearerTokenAuthenticationFilter.class);
-
+                );
         return http.build();
     }
 }

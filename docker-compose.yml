@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: cms
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Govardhan@007
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build: ./cms-backend
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/cms
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=Govardhan@007
+      - SPRING_MAIL_USERNAME=consentmanagement88@gmail.com
+      - SPRING_MAIL_PASSWORD=zbtk boqc mjnt iorj
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=https://dev-m6frsjfbk7k258zu.us.auth0.com/
+      - AUTH0_DOMAIN=dev-m6frsjfbk7k258zu.us.auth0.com
+      - AUTH0_MANAGEMENT_CLIENT_ID=xDE28l12I1qmh7PfLhcYTTpmYRlxT4DN
+      - AUTH0_MANAGEMENT_CLIENT_SECRET=rk0bWY5FejbsbJEz-04DLtGLXLBquZ3xHSfFPQNzYYysjrhcGFrcheCbbhs9BzUt
+      - PLATFORM_ADMIN_EMAILS=consentmanagement88@gmail.com
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  frontend:
+    build: ./cms-frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt/live/cms-dpdp.devdolphins.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
+      - /etc/letsencrypt/live/cms-dpdp.devdolphins.com/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

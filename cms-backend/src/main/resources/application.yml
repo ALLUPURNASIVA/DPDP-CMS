@@ -47,9 +47,9 @@ auth0:
     client-secret: rk0bWY5FejbsbJEz-04DLtGLXLBquZ3xHSfFPQNzYYysjrhcGFrcheCbbhs9BzUt
 
 app:
-  frontend-url: http://localhost:5173
+  frontend-url: https://cms-dpdp.devdolphins.com
   cors:
-    allowed-origins: http://localhost:5173
+    allowed-origins: https://cms-dpdp.devdolphins.com
 
 platform:
   admin:

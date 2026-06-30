@@ -23,25 +23,46 @@ import java.util.Set;
 public class OtpVerificationFilter extends OncePerRequestFilter {
 
     private static final Set<String> OTP_REQUIRED_ROLES = Set.of("GENERAL_USER", "FIDUCIARY_WORKER");
-
+/*
     private static final List<String> OTP_ALLOWED_PATHS = List.of(
             "/api/users/sync",
             "/api/users/me",
             "/api/user-otp/"
     );
+*/
+
+    private static final List<String> OTP_ALLOWED_PATHS = List.of(
+            "/users/sync",
+            "/users/me",
+            "/user-otp/"
+    );
+
 
     private final UserRepository userRepo;
     private final GeneralUserOtpRepository otpRepo;
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            return true;
-        }
+protected boolean shouldNotFilter(HttpServletRequest request) {
+    String path = request.getRequestURI();
 
-        String path = request.getServletPath();
-        return OTP_ALLOWED_PATHS.stream().anyMatch(path::startsWith);
+    System.out.println("FILTER PATH = " + path);
+
+    if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        return true;
     }
+/*
+    if (path.contains("/api/users/sync")) return true;
+    if (path.contains("/api/users/me")) return true;
+    if (path.contains("/api/user-otp")) return true;
+
+    return false;
+*/
+
+
+    return path.contains("/users/sync")
+            || path.contains("/users/me")
+            || path.contains("/user-otp");
+}
 
     @Override
     protected void doFilterInternal(
