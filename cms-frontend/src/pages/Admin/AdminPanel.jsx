@@ -49,12 +49,16 @@ export default function AdminPanel() {
   const [auditSearchTerm, setAuditSearchTerm] = useState('');
 
   // ─── SECURITY CLEARANCE ─────────────────────────────────────────────────────
-  const ADMIN_EMAIL = 'consentmanagement88@gmail.com';
+  const ADMIN_EMAILS = ['consentmanagement88@gmail.com'];
+
+  const isPlatformAdmin = user?.email
+    ? ADMIN_EMAILS.includes(user.email.toLowerCase())
+    : false;
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
   const fetchAllDashboardData = async () => {
     // Prevent fetching if the user isn't the admin to save API calls
-    if (!isAuthenticated || user?.email !== ADMIN_EMAIL) return;
+    if (!isAuthenticated || !isPlatformAdmin) return;
 
     setIsLoading(true);
     try {
@@ -107,8 +111,8 @@ export default function AdminPanel() {
     );
   }
 
-  // 2. Block access if the user is not logged in OR their email doesn't match
-  if (!isAuthenticated || user?.email !== ADMIN_EMAIL) {
+  // 2. Block access if the user is not logged in OR their email is not configured as platform admin
+  if (!isAuthenticated || !isPlatformAdmin) {
     return (
       <div className="h-screen overflow-hidden bg-[#F9FAFB] flex items-center justify-center font-sans p-6">
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-red-100 text-center max-w-md w-full">

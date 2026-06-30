@@ -25,13 +25,22 @@ export default function WorkerAccess() {
     fetchWorkers();
   }, []);
 
+  const getErrorMessage = (error, fallback) => {
+    const data = error.response?.data;
+
+    if (typeof data === 'string') return data;
+    if (data?.error) return data.error;
+    if (data?.message) return data.message;
+
+    return fallback;
+  };
+
   const handleAddWorker = async (e) => {
     e.preventDefault();
     if (!newEmail.trim()) return;
 
     try {
       const api = await getSecureClient(getAccessTokenSilently);
-      // CHANGED: now calls the correct assign-worker endpoint
       await api.put('/users/fiduciary/assign-worker', { email: newEmail });
       toast.success("Worker authorized successfully!");
       setNewEmail('');
@@ -42,7 +51,7 @@ export default function WorkerAccess() {
       } else if (error.response?.status === 403) {
         toast.error("You don't have permission to assign workers.");
       } else {
-        toast.error(error.response?.data || "Failed to add worker.");
+        toast.error(getErrorMessage(error, "Failed to add worker."));
       }
     }
   };
@@ -55,7 +64,7 @@ export default function WorkerAccess() {
       toast.success("Worker access revoked.");
       fetchWorkers();
     } catch (error) {
-      toast.error("Failed to revoke access.");
+      toast.error(getErrorMessage(error, "Failed to revoke access."));
     }
   };
 

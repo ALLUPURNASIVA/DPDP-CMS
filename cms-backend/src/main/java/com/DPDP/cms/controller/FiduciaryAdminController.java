@@ -234,9 +234,23 @@ public class FiduciaryAdminController {
     }
 
     @DeleteMapping("/workers/{id}")
-    public ResponseEntity<?> removeWorker(@PathVariable java.util.UUID id) {
-        workerRepo.deleteById(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> removeWorker(@PathVariable String id) {
+        String tenantId = getAuthenticatedTenantId();
+
+        User worker = userRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Worker not found."));
+
+        if (!"FIDUCIARY_WORKER".equals(worker.getRole()) || !tenantId.equals(worker.getTenantId())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "This user is not an active worker for your company."
+            ));
+        }
+
+        worker.setRole("GENERAL_USER");
+        worker.setTenantId(null);
+        userRepo.save(worker);
+
+        return ResponseEntity.ok(Map.of("message", "Worker access revoked successfully."));
     }
 
     // =====================================================

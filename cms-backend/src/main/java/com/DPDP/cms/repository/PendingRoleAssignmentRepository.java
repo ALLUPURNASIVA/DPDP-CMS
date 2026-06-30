@@ -14,4 +14,6 @@ public interface PendingRoleAssignmentRepository extends JpaRepository<PendingRo
     void deleteByEmail(String email);
 
     void deleteByEmailIgnoreCase(String email);
+
+    void deleteByTenantId(String tenantId);
 }

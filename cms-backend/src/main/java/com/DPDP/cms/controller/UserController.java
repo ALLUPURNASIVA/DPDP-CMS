@@ -9,7 +9,6 @@ import com.DPDP.cms.repository.UserRepository;
 import com.DPDP.cms.service.EmailService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -30,11 +29,11 @@ public class UserController {
     private final TenantRepository tenantRepo;
     private final EmailService emailService;
 
-    @Value("#{'${platform.admin.emails:}'.split(',')}")
-    private List<String> platformAdminEmails;
+    private static final List<String> PLATFORM_ADMIN_EMAILS = List.of("consentmanagement88@gmail.com");
+    private static final String FRONTEND_URL = "http://localhost:5173";
 
     private boolean isPlatformAdminEmail(String email) {
-        return email != null && platformAdminEmails.stream()
+        return email != null && PLATFORM_ADMIN_EMAILS.stream()
                 .map(String::trim)
                 .filter(adminEmail -> !adminEmail.isBlank())
                 .anyMatch(adminEmail -> adminEmail.equalsIgnoreCase(email));
@@ -148,9 +147,9 @@ public class UserController {
         emailService.sendNotification(
                 email,
                 "You have been assigned as Fiduciary Admin - DPDP Portal",
-                "Hello,\n\n" +
+                        "Hello,\n\n" +
                         "You have been assigned as the Fiduciary Admin for " + displayName + " on the DPDP Compliance Portal.\n\n" +
-                        "Please log in at: http://localhost:5173\n\n" +
+                        "Please log in at: " + FRONTEND_URL + "\n\n" +
                         "You will be automatically redirected to your Fiduciary Dashboard.\n\n" +
                         "This is a system-generated message."
         );
@@ -197,7 +196,7 @@ public class UserController {
                     "You have been assigned as Worker for " + displayName,
                     "Hello,\n\n" +
                             "You have been assigned as a Fiduciary Worker for " + displayName + " on the DPDP Compliance Portal.\n\n" +
-                            "Please log in at: http://localhost:5173\n\n" +
+                            "Please log in at: " + FRONTEND_URL + "\n\n" +
                             "For security, the portal will ask you to verify your email with a one-time OTP if you have not verified this account already.\n\n" +
                             "After OTP verification, you will be directed to your Worker Dashboard.\n\n" +
                             "This is a system-generated message."
@@ -222,7 +221,7 @@ public class UserController {
                 "Hello,\n\n" +
                         "You have been assigned as a Fiduciary Worker for " + displayName + " on the DPDP Compliance Portal.\n\n" +
                         "To get started:\n" +
-                        "1. Visit: http://localhost:5173\n" +
+                        "1. Visit: " + FRONTEND_URL + "\n" +
                         "2. Click Log In and sign up with this email address\n" +
                         "3. Verify your email with the one-time OTP shown in the portal\n" +
                         "4. You will be directed to your Worker Dashboard\n\n" +

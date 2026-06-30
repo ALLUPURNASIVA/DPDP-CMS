@@ -15,16 +15,9 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Allow your React dev server
         config.setAllowedOrigins(List.of("http://localhost:5173"));
-
-        // Allow all standard HTTP methods
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-
-        // Allow Authorization header (needed for JWT) and Content-Type
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-User-Email", "X-Worker-Email"));
-
-        // Allow credentials
+        config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

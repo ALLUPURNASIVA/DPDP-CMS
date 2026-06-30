@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/cms
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:Govardhan@007}
+    username: postgres
+    password: Govardhan@007
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -19,8 +19,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME:consentmanagement88@gmail.com}
-    password: ${MAIL_PASSWORD:zbtk boqc mjnt iorj}
+    username: consentmanagement88@gmail.com
+    password: zbtk boqc mjnt iorj
     properties:
       mail:
         smtp:
@@ -30,7 +30,7 @@ spring:
 
   security:
     oauth2:
-      resource server:
+      resource-server:
         jwt:
           issuer-uri: https://dev-m6frsjfbk7k258zu.us.auth0.com/
           audiences: https://cms-api
@@ -40,10 +40,17 @@ server:
 
 auth0:
   domain: dev-m6frsjfbk7k258zu.us.auth0.com
+  issuer-uri: https://dev-m6frsjfbk7k258zu.us.auth0.com/
+  audience: https://cms-api
   management:
     client-id: xDE28l12I1qmh7PfLhcYTTpmYRlxT4DN
     client-secret: rk0bWY5FejbsbJEz-04DLtGLXLBquZ3xHSfFPQNzYYysjrhcGFrcheCbbhs9BzUt
 
+app:
+  frontend-url: http://localhost:5173
+  cors:
+    allowed-origins: http://localhost:5173
+
 platform:
   admin:
-    emails: ${PLATFORM_ADMIN_EMAILS:consentmanagement88@gmail.com}
+    emails: consentmanagement88@gmail.com

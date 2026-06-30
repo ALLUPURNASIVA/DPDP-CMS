@@ -10,6 +10,7 @@ import com.DPDP.cms.entity.User;
 import com.DPDP.cms.repository.AuditLogRepository;
 import com.DPDP.cms.repository.ConsentArtifactRepository;
 import com.DPDP.cms.repository.NotificationLogRepository;
+import com.DPDP.cms.repository.PendingRoleAssignmentRepository;
 import com.DPDP.cms.repository.PurposeRepository;
 import com.DPDP.cms.repository.TenantRepository;
 import com.DPDP.cms.repository.UserRepository;
@@ -34,6 +35,7 @@ public class AdminController {
     private final TenantRepository tenantRepo;
     private final ConsentArtifactRepository consentRepo;
     private final NotificationLogRepository notificationRepo;
+    private final PendingRoleAssignmentRepository pendingRepo;
 
     @GetMapping("/fiduciaries")
     public List<FiduciaryDto> getPublicFiduciaries() {
@@ -156,7 +158,17 @@ public class AdminController {
             }
             consentRepo.saveAll(activeConsents);
 
-            return ResponseEntity.ok(Map.of("message", "Company deactivated and all data processing legally halted."));
+            List<User> companyUsers = userRepo.findByTenantId(id);
+            for (User user : companyUsers) {
+                if ("FIDUCIARY_ADMIN".equals(user.getRole()) || "FIDUCIARY_WORKER".equals(user.getRole())) {
+                    user.setRole("GENERAL_USER");
+                    user.setTenantId(null);
+                }
+            }
+            userRepo.saveAll(companyUsers);
+            pendingRepo.deleteByTenantId(id);
+
+            return ResponseEntity.ok(Map.of("message", "Company deactivated. Fiduciary admins and workers were reset to general users."));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to deactivate company: " + e.getMessage()));
